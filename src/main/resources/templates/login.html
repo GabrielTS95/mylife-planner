@@ -10,8 +10,32 @@
 </head>
 <body class="login-body">
   <main class="login-layout">
-    <!-- Panel Izquierdo: Branding e Introducción Visual -->
-    <section class="login-intro" aria-label="MyLife Planner">
+    <!-- Panel Izquierdo: Branding, Escena 3D y Movimiento -->
+    <section class="login-intro" id="introSection" aria-label="MyLife Planner">
+      <!-- Fondo y Figuras en 3D Interactivas (WebGL Three.js) -->
+      <div class="canvas-3d-container" id="canvas3dContainer" aria-hidden="true">
+        <canvas id="canvas3d"></canvas>
+      </div>
+
+      <!-- Efectos de Luces y Orbes Resplandecientes 3D -->
+      <div class="glow-orb glow-orb-1" aria-hidden="true"></div>
+      <div class="glow-orb glow-orb-2" aria-hidden="true"></div>
+
+      <!-- Ilustración 3D Flotante con Movimiento Orgánico -->
+      <div class="floating-3d-composition" id="floating3dComp" aria-hidden="true">
+        <div class="floating-3d-wrapper">
+          <img th:src="@{/images/shapes-3d.png}" class="floating-3d-asset" alt="3D Geometric Elements">
+          <div class="floating-badge badge-top">
+            <i class="bi bi-graph-up-arrow me-1 text-mint"></i>
+            <span>Enfoque & Control</span>
+          </div>
+          <div class="floating-badge badge-bottom">
+            <i class="bi bi-check2-circle me-1 text-mint"></i>
+            <span>Todo en Orden</span>
+          </div>
+        </div>
+      </div>
+
       <div class="intro-header">
         <a class="login-brand" th:href="@{/login}">
           <span class="brand-symbol" aria-hidden="true">✦</span>
@@ -44,9 +68,9 @@
       </div>
     </section>
 
-    <!-- Panel Derecho: Tarjeta de Acceso -->
-    <section class="login-panel" aria-labelledby="login-title">
-      <div class="login-card">
+    <!-- Panel Derecho: Tarjeta de Acceso con Perspectiva e Inclinación 3D -->
+    <section class="login-panel" id="panelSection" aria-labelledby="login-title">
+      <div class="login-card" id="loginCard">
         <!-- Segmented Tab Controls -->
         <div class="login-tabs" role="tablist" aria-label="Opciones de acceso">
           <button type="button" class="tab-btn active" id="tabLogin" role="tab" aria-selected="true">
@@ -190,6 +214,8 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Three.js para renderizado de figuras en 3D en tiempo real con movimiento -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script th:src="@{/js/login.js}"></script>
 </body>
 </html>

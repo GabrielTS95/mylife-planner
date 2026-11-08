@@ -30,7 +30,7 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, AccountService accounts) throws Exception {
         return http.authorizeHttpRequests(auth -> {
-                    auth.requestMatchers("/login", "/css/**", "/js/**", "/error").permitAll();
+                    auth.requestMatchers("/login", "/css/**", "/js/**", "/images/**", "/error", "/favicon.ico").permitAll();
                     auth.requestMatchers("/settings", "/settings/**").access((authentication, context) ->
                             new AuthorizationDecision(accounts.findAuthenticated(authentication.get())
                                     .map(user -> user.isEnabled() && user.isAdministrator()).orElse(false)));
