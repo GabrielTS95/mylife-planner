@@ -1,0 +1,16 @@
+
+MYLIFE PLANNER - EJECUTAR EN INTELLIJ IDEA
+
+1. Descomprime MyLifePlanner-Java-MVC.zip.
+2. Abre IntelliJ IDEA.
+3. File > Open.
+4. Selecciona la carpeta "mylife-planner" o el archivo pom.xml.
+5. Selecciona JDK 21 como Project SDK.
+6. Espera a que IntelliJ importe las dependencias Maven.
+7. Abre:
+   src/main/java/com/mylifeplanner/MyLifePlannerApplication.java
+8. Clic en el triangulo verde Run junto al metodo main.
+9. Abre en Chrome:
+   http://localhost:8080
+
+La base H2 se crea automaticamente, no necesitas instalar MySQL/PostgreSQL.

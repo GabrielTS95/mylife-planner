@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="csrf-token" th:content="${_csrf.token}">
+  <meta name="csrf-header" th:content="${_csrf.headerName}">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Home | MyLife Planner</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="dashboard-shell">
+
+<!-- SIDEBAR MODERNO COMPARTIDO -->
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<!-- ==========================================
+     CONTENIDO PRINCIPAL (HOME)
+     ========================================== -->
+<main class="dashboard-main">
+
+  <!-- CABECERA SUPERIOR HOME -->
+  <header class="home-topbar">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fw-bold rounded-pill">
+          <i class="bi bi-grid-fill me-1"></i>PANEL PRINCIPAL
+        </span>
+      </div>
+      <h1><i class="bi bi-house-door-fill text-primary"></i> Home</h1>
+      <p>Vista integral organizada en Finanzas, Tareas y Actividades de la semana.</p>
+    </div>
+    <div class="home-topbar-actions">
+      <div class="date-pill-chip">
+        <i class="bi bi-calendar-check-fill text-primary fs-5"></i>
+        <span>Hoy: <strong th:text="${#temporals.format(today, 'dd/MM/yyyy')}"></strong></span>
+      </div>
+    </div>
+  </header>
+
+
+  <!-- ========================================================
+       SECCIÓN 1: FINANZAS
+       ======================================================== -->
+  <section class="home-section" id="section-finances">
+    <div class="section-header-banner">
+      <div class="section-header-content">
+        <div class="section-icon-badge badge-finances">
+          <i class="bi bi-wallet2"></i>
+        </div>
+        <div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="section-number-tag">Sección 01</span>
+            <h2 class="section-header-title">Finanzas</h2>
+          </div>
+          <p class="section-header-subtitle">Ingresos, gastos, capacidad de ahorro y balance neto disponible del periodo.</p>
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="/finances" class="section-action-btn">
+          <i class="bi bi-receipt"></i>
+          <span>Movimientos</span>
+        </a>
+        <a href="/goals" class="section-action-btn">
+          <i class="bi bi-bullseye"></i>
+          <span>Metas</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- METRICAS DE FINANZAS CON ICONOS GRANDES -->
+    <div class="metrics-grid-4">
+      <!-- INGRESOS -->
+      <div class="stat-card-modern">
+        <div class="stat-icon-wrapper icon-income">
+          <i class="bi bi-arrow-down-left-circle-fill"></i>
+        </div>
+        <div class="stat-info">
+          <span>Ingresos</span>
+          <strong>S/ <span th:text="${#numbers.formatDecimal(ingresos, 1, 2)}">0.00</span></strong>
+          <small th:text="${incomeCount + ' movimiento(s)'}"></small>
+        </div>
+      </div>
+
+      <!-- GASTOS -->
+      <div class="stat-card-modern">
+        <div class="stat-icon-wrapper icon-expense">
+          <i class="bi bi-arrow-up-right-circle-fill"></i>
+        </div>
+        <div class="stat-info">
+          <span>Gastos</span>
+          <strong>S/ <span th:text="${#numbers.formatDecimal(gastos, 1, 2)}">0.00</span></strong>
+          <small th:text="${expenseCount + ' egreso(s)'}"></small>
+        </div>
+      </div>
+
+      <!-- AHORROS -->
+      <div class="stat-card-modern">
+        <div class="stat-icon-wrapper icon-saving">
+          <i class="bi bi-piggy-bank-fill"></i>
+        </div>
+        <div class="stat-info">
+          <span>Ahorros</span>
+          <strong>S/ <span th:text="${#numbers.formatDecimal(ahorros, 1, 2)}">0.00</span></strong>
+          <small th:text="${'Tasa de ahorro: ' + savingsRate + '%'}"></small>
+        </div>
+      </div>
+
+      <!-- DISPONIBLE -->
+      <div class="stat-card-modern">
+        <div class="stat-icon-wrapper icon-balance">
+          <i class="bi bi-safe2-fill"></i>
+        </div>
+        <div class="stat-info">
+          <span>Disponible</span>
+          <strong>S/ <span th:text="${#numbers.formatDecimal(balance, 1, 2)}">0.00</span></strong>
+          <small>Ingresos - Gastos - Ahorros</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- DETALLES DE FINANZAS: GRAFICO + LISTA DE MOVIMIENTOS -->
+    <div class="home-grid-2">
+      <!-- PANEL GRAFICO FINANZAS -->
+      <div class="card-panel">
+        <div class="card-panel-header">
+          <div>
+            <h3><i class="bi bi-pie-chart-fill text-success"></i> Distribución Financiera</h3>
+            <p>Comparativa visual de ingresos, gastos y ahorros</p>
+          </div>
+        </div>
+        <div class="chart-container-panel">
+          <canvas id="financeDistributionChart"></canvas>
+        </div>
+      </div>
+
+      <!-- PANEL MOVIMIENTOS RECIENTES DEL PERIODO -->
+      <div class="card-panel">
+        <div class="card-panel-header">
+          <div>
+            <h3><i class="bi bi-receipt text-primary"></i> Movimientos del Periodo</h3>
+            <p th:text="${'Total: ' + #lists.size(transactions) + ' transacciones'}"></p>
+          </div>
+          <a href="/finances" class="btn btn-sm btn-outline-dark"><i class="bi bi-plus-lg me-1"></i>Nuevo</a>
+        </div>
+
+        <div th:if="${#lists.isEmpty(transactions)}" class="empty-state-modern">
+          <i class="bi bi-cash-stack"></i>
+          <p class="mb-2">No hay transacciones registradas en este periodo.</p>
+          <a href="/finances" class="btn btn-sm btn-dark">Registrar Primer Movimiento</a>
+        </div>
+
+        <div th:if="${!#lists.isEmpty(transactions)}" class="d-flex flex-column">
+          <div th:each="tx : ${recentTransactions}" class="transaction-item">
+            <div class="tx-left">
+              <div class="tx-type-icon"
+                   th:classappend="${tx.type.name() == 'INGRESO'} ? 'icon-income' : (${tx.type.name() == 'GASTO'} ? 'icon-expense' : 'icon-saving')">
+                <i th:if="${tx.type.name() == 'INGRESO'}" class="bi bi-arrow-down-left"></i>
+                <i th:if="${tx.type.name() == 'GASTO'}" class="bi bi-arrow-up-right"></i>
+                <i th:if="${tx.type.name() == 'AHORRO'}" class="bi bi-piggy-bank"></i>
+              </div>
+              <div class="tx-text">
+                <strong th:text="${tx.description != null && !tx.description.isBlank() ? tx.description : tx.category}"></strong>
+                <span>
+                  <i class="bi bi-tag-fill me-1"></i><span th:text="${tx.category}"></span> &middot;
+                  <span th:text="${tx.transactionDate != null ? tx.transactionDate : '-'}"></span>
+                </span>
+              </div>
+            </div>
+            <div class="tx-amount"
+                 th:classappend="${tx.type.name() == 'INGRESO'} ? 'income' : (${tx.type.name() == 'GASTO'} ? 'expense' : 'saving')">
+              <span th:text="${tx.type.name() == 'INGRESO' ? '+' : (tx.type.name() == 'GASTO' ? '-' : '')}"></span>S/ <span th:text="${#numbers.formatDecimal(tx.amount, 1, 2)}"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ========================================================
+       SECCIÓN 2: TAREAS
+       ======================================================== -->
+  <section class="home-section" id="section-tasks">
+    <div class="section-header-banner">
+      <div class="section-header-content">
+        <div class="section-icon-badge badge-tasks">
+          <i class="bi bi-check2-square"></i>
+        </div>
+        <div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="section-number-tag">Sección 02</span>
+            <h2 class="section-header-title">Tareas</h2>
+          </div>
+          <p class="section-header-subtitle">Tablero de trabajo, control de prioridades y avance de pendientes.</p>
+        </div>
+      </div>
+      <a href="/tasks" class="section-action-btn">
+        <span>Abrir Kanban Completo</span>
+        <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+
+    <!-- METRICAS DE TAREAS POR ESTADO (ICONOS GRANDES - 4 ESTADOS) -->
+    <div class="metrics-grid-4">
+      <!-- 1. POR HACER (PLOMO) -->
+      <div class="stat-card-modern">
+        <div class="stat-icon-wrapper icon-todo">
+          <i class="bi bi-hourglass-split"></i>
+        </div>
+        <div class="stat-info">
+          <span>Por Hacer</span>
+          <strong th:text="${pendingCount}">0</strong>
+          <small>Tareas pendientes</small>
+        </div>
+      </div>
+
+      <!-- 2. EN PROCESO (AMBAR) -->
+      <div class="stat-card-modern">
+        <div class="stat-icon-wrapper icon-progress">
+          <i class="bi bi-lightning-charge-fill"></i>
+        </div>
+        <div class="stat-info">
+          <span>En Proceso</span>
+          <strong th:text="${inProgressCount}">0</strong>
+          <small>En desarrollo activo</small>
+        </div>
+      </div>
+
+      <!-- 3. BLOQUEADO (ROJO) -->
+      <div class="stat-card-modern">
+        <div class="stat-icon-wrapper icon-blocked">
+          <i class="bi bi-slash-circle-fill"></i>
+        </div>
+        <div class="stat-info">
+          <span>Bloqueado</span>
+          <strong th:text="${blockedCount}">0</strong>
+          <small>Requiere atención</small>
+        </div>
+      </div>
+
+      <!-- 4. FINALIZADO (VERDE) -->
+      <div class="stat-card-modern">
+        <div class="stat-icon-wrapper icon-done">
+          <i class="bi bi-check-circle-fill"></i>
+        </div>
+        <div class="stat-info">
+          <span>Finalizado</span>
+          <strong th:text="${completedCount}">0</strong>
+          <small>Tareas completadas</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- KANBAN PREVIEW Y GRAFICO DE ESTADO -->
+    <div class="card-panel mb-3">
+      <div class="card-panel-header">
+        <div>
+          <h3><i class="bi bi-kanban text-warning"></i> Tablero de Tareas</h3>
+          <p>Visualización rápida y cambio de estado directo</p>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <div class="d-none d-md-block text-end">
+            <span class="small text-muted fw-bold">Tasa de finalización:</span>
+            <strong class="text-primary ms-1" th:text="${completionRate + '%'}">0%</strong>
+          </div>
+          <a href="/tasks" class="btn btn-sm btn-dark"><i class="bi bi-plus-lg me-1"></i>Crear Tarea</a>
+        </div>
+      </div>
+
+      <div class="progress progress-thin mb-3">
+        <div class="progress-bar bg-success" th:style="'width:' + ${completionRate} + '%'"></div>
+      </div>
+
+      <div th:if="${#lists.isEmpty(tasks)}" class="empty-state-modern">
+        <i class="bi bi-card-checklist"></i>
+        <p class="mb-2">No tienes tareas registradas actualmente.</p>
+        <a href="/tasks" class="btn btn-sm btn-dark">Crear Primera Tarea</a>
+      </div>
+
+      <div th:if="${!#lists.isEmpty(tasks)}" class="kanban-preview-grid">
+        <!-- COLUMNAS KANBAN -->
+        <article th:each="status : ${taskStatuses}"
+                 th:with="colTasks=${tasksByStatus.get(status)}"
+                 class="kanban-col-wrap">
+          <header class="kanban-col-head"
+                  th:classappend="${status.name() == 'POR_HACER'} ? 'col-head-todo' : (${status.name() == 'EN_PROCESO'} ? 'col-head-progress' : (${status.name() == 'BLOQUEADO'} ? 'col-head-blocked' : 'col-head-done'))">
+            <span class="text-white" th:text="${status.label}"></span>
+            <span th:text="${#lists.size(colTasks)}">0</span>
+          </header>
+
+          <div class="kanban-col-items">
+            <div th:if="${#lists.isEmpty(colTasks)}" class="text-center py-4 text-muted small">
+              <i class="bi bi-check2 opacity-50 d-block fs-4 mb-1"></i> Sin tareas
+            </div>
+
+            <div th:each="t : ${colTasks}" class="kanban-home-card">
+              <div class="kanban-card-title-row d-flex justify-content-between align-items-start gap-2 mb-1">
+                <strong th:text="${t.title}"></strong>
+                <span class="priority-pill"
+                      th:classappend="${t.priority.name() == 'ALTA'} ? 'priority-high' : (${t.priority.name() == 'MEDIA'} ? 'priority-medium' : 'priority-low')"
+                      th:text="${t.priority}"></span>
+              </div>
+              <p th:if="${t.description != null && !t.description.isBlank()}" th:text="${t.description}"></p>
+              <div class="kanban-card-footer">
+                <span>
+                  <i class="bi bi-calendar-event me-1"></i>
+                  <span th:text="${t.dueDate != null ? t.dueDate : 'Sin fecha'}"></span>
+                </span>
+              </div>
+              <div class="kanban-actions-row">
+                <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='EN_PROCESO')}" class="d-inline m-0" th:if="${t.status.name() == 'POR_HACER'}"><button type="submit" class="btn btn-outline-primary">Iniciar</button></form>
+                <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='BLOQUEADO')}" class="d-inline m-0" th:if="${t.status.name() == 'POR_HACER'}"><button type="submit" class="btn btn-outline-danger">Bloquear</button></form>
+
+                <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='POR_HACER')}" class="d-inline m-0" th:if="${t.status.name() == 'EN_PROCESO'}"><button type="submit" class="btn btn-outline-secondary">Por hacer</button></form>
+                <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='FINALIZADO')}" class="d-inline m-0" th:if="${t.status.name() == 'EN_PROCESO'}"><button type="submit" class="btn btn-outline-success">Finalizar</button></form>
+                <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='BLOQUEADO')}" class="d-inline m-0" th:if="${t.status.name() == 'EN_PROCESO'}"><button type="submit" class="btn btn-outline-danger">Bloquear</button></form>
+
+                <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='EN_PROCESO')}" class="d-inline m-0" th:if="${t.status.name() == 'BLOQUEADO'}"><button type="submit" class="btn btn-outline-warning">Desbloquear</button></form>
+                <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='POR_HACER')}" class="d-inline m-0" th:if="${t.status.name() == 'BLOQUEADO'}"><button type="submit" class="btn btn-outline-secondary">Por hacer</button></form>
+
+                <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='POR_HACER')}" class="d-inline m-0" th:if="${t.status.name() == 'FINALIZADO'}"><button type="submit" class="btn btn-outline-secondary">Reabrir</button></form>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ========================================================
+       SECCIÓN 3: ACTIVIDADES DE LA SEMANA
+       ======================================================== -->
+  <section class="home-section" id="section-activities">
+    <div class="section-header-banner">
+      <div class="section-header-content">
+        <div class="section-icon-badge badge-activities">
+          <i class="bi bi-calendar-week-fill"></i>
+        </div>
+        <div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="section-number-tag">Sección 03</span>
+            <h2 class="section-header-title">Actividades de la semana</h2>
+          </div>
+          <p class="section-header-subtitle">
+            Cronograma semanal (Semana del <span th:text="${#temporals.format(weekStart, 'dd/MM')}"></span> al <span th:text="${#temporals.format(weekEnd, 'dd/MM')}"></span>)
+          </p>
+        </div>
+      </div>
+      <a class="section-action-btn"
+         th:href="@{/activities(weekStart=${weekStart},viewMode='full')}">
+        <span>Ver Agenda Semanal</span>
+        <i class="bi bi-arrow-right"></i>
+      </a>
+    </div>
+
+    <!-- DISTRIBUCION Y RESUMEN SEMANAL -->
+    <div class="card-panel mb-3">
+      <div class="card-panel-header">
+        <div>
+          <h3><i class="bi bi-bar-chart-line-fill text-primary"></i> Carga de Actividades por Día</h3>
+          <p th:text="${'Total de ' + totalActivitiesWeek + ' actividades programadas en la semana'}"></p>
+        </div>
+        <a class="btn btn-sm btn-dark"
+           th:href="@{/activities(weekStart=${weekStart},viewMode='full')}"><i class="bi bi-plus-lg me-1"></i>Nueva Actividad</a>
+      </div>
+      <div class="chart-container-panel" style="height: 180px;">
+        <canvas id="activityWeekChart"></canvas>
+      </div>
+    </div>
+
+    <!-- CRONOGRAMA SEMANAL (7 COLUMNAS: LUNES A DOMINGO) -->
+    <div class="week-schedule-grid">
+      <article th:each="entry, dayStat : ${activitiesByDate}"
+               th:with="dayDate=${entry.key}, dayActs=${entry.value}"
+               class="week-day-column"
+               th:classappend="${dayDate.equals(today)} ? 'is-current-day'">
+        
+        <header class="week-day-header">
+          <div class="day-title-box">
+            <strong th:text="${dayNames[dayStat.index]}"></strong>
+            <small th:text="${#temporals.format(dayDate, 'dd/MM')}"></small>
+          </div>
+          <div>
+            <span th:if="${dayDate.equals(today)}" class="day-today-badge">HOY</span>
+            <span th:unless="${dayDate.equals(today)}" class="day-count-badge" th:text="${#lists.size(dayActs)}">0</span>
+          </div>
+        </header>
+
+        <div class="week-day-body">
+          <div th:if="${#lists.isEmpty(dayActs)}" class="text-center py-4 text-muted small">
+            <i class="bi bi-calendar-x opacity-25 d-block fs-3 mb-1"></i>
+            Sin actividades
+          </div>
+
+          <div th:each="act : ${dayActs}"
+               class="activity-item-card"
+               th:style="${activityStyles[act.id]}">
+            <i class="bi activity-card-watermark"
+               th:classappend="${activityIcons[act.id]}"
+               aria-hidden="true"></i>
+            <div class="activity-time-badge">
+              <i class="bi bi-clock-fill"></i>
+              <span th:text="${act.startTime}"></span>
+              <span th:if="${act.endTime != null}" th:text="${'- ' + act.endTime}"></span>
+            </div>
+            <h4 th:text="${act.title}"></h4>
+            <div>
+              <span class="category-chip" th:text="${act.category}"></span>
+            </div>
+            <p th:if="${act.notes != null && !act.notes.isBlank()}" class="activity-notes-text" th:text="${act.notes}"></p>
+          </div>
+        </div>
+      </article>
+    </div>
+  </section>
+
+</main>
+
+<!-- ==========================================
+     SCRIPTS (BOOTSTRAP & CHART.JS)
+     ========================================== -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script th:inline="javascript">
+  // Chart defaults
+  Chart.defaults.font.family = 'Inter, system-ui, -apple-system, sans-serif';
+  Chart.defaults.color = '#64748b';
+
+  // Data from backend
+  const financeLabels = /*[[${financeChartLabels}]]*/ ['Ingresos', 'Gastos', 'Ahorros'];
+  const financeValues = /*[[${financeChartValues}]]*/ [0, 0, 0];
+
+  const activityLabels = /*[[${activityChartLabels}]]*/ ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const activityValues = /*[[${activityChartValues}]]*/ [0, 0, 0, 0, 0, 0, 0];
+
+  // Gráfico 1: Finanzas
+  const financeCtx = document.getElementById('financeDistributionChart');
+  if (financeCtx) {
+    new Chart(financeCtx, {
+      type: 'doughnut',
+      data: {
+        labels: financeLabels,
+        datasets: [{
+          data: financeValues,
+          backgroundColor: ['#16a34a', '#ef4444', '#2563eb'],
+          hoverOffset: 6,
+          borderWidth: 2,
+          borderColor: '#ffffff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              boxWidth: 14,
+              padding: 16,
+              font: { weight: 600, size: 12 }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // Gráfico 2: Actividades Semanales
+  const activityCtx = document.getElementById('activityWeekChart');
+  if (activityCtx) {
+    new Chart(activityCtx, {
+      type: 'bar',
+      data: {
+        labels: activityLabels,
+        datasets: [{
+          label: 'Actividades programadas',
+          data: activityValues,
+          backgroundColor: '#3b82f6',
+          borderRadius: 8,
+          barThickness: 32
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              precision: 0,
+              color: '#94a3b8'
+            },
+            grid: {
+              color: '#f1f5f9'
+            }
+          },
+          x: {
+            grid: { display: false },
+            ticks: {
+              font: { weight: 600 }
+            }
+          }
+        }
+      }
+    });
+  }
+</script>
+
+<div th:replace="~{fragments/alerts :: alerts}"></div>
+</body>
+</html>

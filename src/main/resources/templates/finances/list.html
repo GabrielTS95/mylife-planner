@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="csrf-token" th:if="${_csrf != null}" th:content="${_csrf.token}">
+  <meta name="csrf-header" th:if="${_csrf != null}" th:content="${_csrf.headerName}">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Movimientos Financieros | MyLife Planner</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="dashboard-shell">
+
+<!-- SIDEBAR MODERNO COMPARTIDO -->
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<!-- CONTENIDO PRINCIPAL -->
+<main class="dashboard-main">
+
+  <!-- CABECERA DE LA PAGINA -->
+  <header class="home-topbar">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 fw-bold rounded-pill">
+          <i class="bi bi-wallet2 me-1"></i>FINANZAS &middot; MOVIMIENTOS
+        </span>
+      </div>
+      <h1><i class="bi bi-receipt text-success"></i> Movimientos</h1>
+      <p>Registra ingresos, gastos y ahorros para llevar un control financiero exacto.</p>
+    </div>
+    <div class="home-topbar-actions">
+      <form method="get" th:action="@{/finances}" class="d-flex align-items-center gap-2">
+        <input type="hidden" name="sortAmount" th:value="${sortAmount}" id="filterSortAmount">
+        <label for="month" class="fw-bold small text-muted mb-0">Mes:</label>
+        <select id="month" name="month" class="form-select rounded-pill" aria-label="Mes de los movimientos"
+                onchange="this.form.requestSubmit()">
+          <option th:each="filterMonth : ${filterMonths}" th:value="${filterMonth.monthValue}"
+                  th:selected="${filterMonth.equals(selectedMonth)}"
+                  th:text="${filterMonthNames[filterMonth.monthValue - 1]}"></option>
+        </select>
+        <label for="year" class="fw-bold small text-muted mb-0">Año:</label>
+        <select id="year" name="year" class="form-select rounded-pill" aria-label="Año de los movimientos"
+                onchange="this.form.requestSubmit()">
+          <option th:each="filterYear : ${filterYears}" th:value="${filterYear}"
+                  th:selected="${filterYear == selectedMonth.year}" th:text="${filterYear}"></option>
+        </select>
+        <noscript><button type="submit" class="btn btn-dark rounded-pill">Ver</button></noscript>
+      </form>
+    </div>
+  </header>
+
+
+
+  <!-- METRICAS CON ICONOS GRANDES -->
+  <section class="metrics-grid-4 mb-4">
+    <!-- INGRESOS -->
+    <div class="stat-card-modern">
+      <div class="stat-icon-wrapper icon-income">
+        <i class="bi bi-arrow-down-left-circle-fill"></i>
+      </div>
+      <div class="stat-info">
+        <span>Ingresos del mes</span>
+        <strong>S/ <span th:text="${#numbers.formatDecimal(monthIncome, 1, 2)}">0.00</span></strong>
+        <small th:text="${selectedMonth}"></small>
+      </div>
+    </div>
+
+    <!-- GASTOS -->
+    <div class="stat-card-modern">
+      <div class="stat-icon-wrapper icon-expense">
+        <i class="bi bi-arrow-up-right-circle-fill"></i>
+      </div>
+      <div class="stat-info">
+        <span>Gastos del mes</span>
+        <strong>S/ <span th:text="${#numbers.formatDecimal(monthExpenses, 1, 2)}">0.00</span></strong>
+        <small>Mes ant: S/ <span th:text="${#numbers.formatDecimal(lastMonthExpenses, 1, 2)}">0.00</span></small>
+      </div>
+    </div>
+
+    <!-- AHORROS -->
+    <div class="stat-card-modern">
+      <div class="stat-icon-wrapper icon-saving">
+        <i class="bi bi-piggy-bank-fill"></i>
+      </div>
+      <div class="stat-info">
+        <span>Ahorros del mes</span>
+        <strong>S/ <span th:text="${#numbers.formatDecimal(monthSavings, 1, 2)}">0.00</span></strong>
+        <small>Fondo para objetivos</small>
+      </div>
+    </div>
+
+    <!-- DISPONIBLE -->
+    <div class="stat-card-modern">
+      <div class="stat-icon-wrapper icon-balance">
+        <i class="bi bi-safe2-fill"></i>
+      </div>
+      <div class="stat-info">
+        <span>Disponible Neto</span>
+        <strong>S/ <span th:text="${#numbers.formatDecimal(monthAvailable, 1, 2)}">0.00</span></strong>
+        <small>Ingresos - Gastos - Ahorros</small>
+      </div>
+    </div>
+  </section>
+
+  <!-- TABLA DE MOVIMIENTOS DEL MES -->
+  <section class="card-panel mb-4" id="monthlyTransactions">
+    <div class="card-panel-header flex-wrap">
+      <div>
+        <h3><i class="bi bi-table text-primary"></i> Todos los Movimientos de <span th:text="${selectedMonth}"></span></h3>
+        <p>Detalle completo de transacciones del mes</p>
+      </div>
+      <div class="finance-table-actions">
+      <button type="button" class="btn btn-sm btn-dark rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#newTransactionModal">
+        <i class="bi bi-plus-lg me-1"></i>Nuevo Movimiento
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-dark rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#newCategoryModal">
+        <i class="bi bi-tag me-1" aria-hidden="true"></i>Nueva Categoría
+      </button>
+      <span class="badge bg-secondary-subtle text-secondary px-3 py-2 rounded-pill" th:text="${#lists.size(transactions) + ' registros'}"></span>
+      </div>
+    </div>
+    <div class="table-responsive">
+      <table class="table align-middle table-hover mb-0">
+        <thead class="table-light">
+        <tr>
+          <th style="width: 50px;" class="text-center">#</th>
+          <th>Fecha Registro</th>
+          <th>Fecha de pago</th>
+          <th>Detalle</th>
+          <th>Categoría</th>
+          <th>Tipo</th>
+          <th class="text-end" id="sortAmountHeader" style="cursor: pointer; user-select: none;" title="Ordenar por monto (mayor a menor o menor a mayor)">
+            <span class="d-inline-flex align-items-center gap-1 justify-content-end">
+              Monto
+              <i id="sortAmountIcon" class="bi"
+                 th:classappend="${sortAmount == 'asc'} ? 'bi-sort-numeric-down text-primary' : (${sortAmount == 'desc'} ? 'bi-sort-numeric-down-alt text-primary' : 'bi-arrow-down-up text-muted')"></i>
+            </span>
+          </th>
+          <th class="text-end">Acciones</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="tx, iterStat : ${transactions}" th:attr="data-amount=${tx.amount}">
+          <td class="text-center text-muted fw-semibold row-number" th:text="${iterStat.count}">1</td>
+          <td th:text="${tx.registrationDate != null ? tx.registrationDate : '-'}">-</td>
+          <td th:text="${tx.transactionDate != null ? tx.transactionDate : '-'}">-</td>
+          <td><strong th:text="${tx.description != null && !tx.description.isBlank() ? tx.description : 'Sin descripción'}"></strong></td>
+          <td><span class="badge bg-light text-dark border" th:text="${tx.category}"></span></td>
+          <td>
+            <span class="badge"
+                  th:classappend="${tx.type.name() == 'INGRESO'} ? 'bg-success-subtle text-success border border-success' : (${tx.type.name() == 'GASTO'} ? 'bg-danger-subtle text-danger border border-danger' : 'bg-primary-subtle text-primary border border-primary')"
+                  th:text="${tx.type.label}"></span>
+          </td>
+          <td class="text-end fw-bold"
+              th:classappend="${tx.type.name() == 'INGRESO'} ? 'text-success' : (${tx.type.name() == 'GASTO'} ? 'text-danger' : 'text-primary')">
+            <span th:text="${tx.type.name() == 'INGRESO' ? '+' : (tx.type.name() == 'GASTO' ? '-' : '')}"></span>S/ <span th:text="${#numbers.formatDecimal(tx.amount, 1, 2)}"></span>
+          </td>
+          <td class="text-end text-nowrap">
+            <div class="d-inline-flex align-items-center gap-2">
+              <button type="button" class="btn btn-sm btn-outline-primary"
+                      data-bs-toggle="modal" data-bs-target="#newTransactionModal"
+                      th:attr="data-edit-url=@{/finances/{id}/edit(id=${tx.id})},data-type=${tx.type.name()},data-amount=${tx.amount},data-category=${tx.category},data-bank=${tx.bank},data-description=${tx.description},data-date=${tx.transactionDate},data-month=${tx.movementMonth}">
+                <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Editar
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary"
+                      th:disabled="${duplicatedToNextMonthIds.contains(tx.id)}"
+                      th:classappend="${duplicatedToNextMonthIds.contains(tx.id)} ? 'disabled' : ''"
+                      th:attr="data-bs-toggle=${duplicatedToNextMonthIds.contains(tx.id) ? null : 'modal'},data-bs-target=${duplicatedToNextMonthIds.contains(tx.id) ? null : '#duplicateTransactionModal'},data-url=@{/finances/{id}/duplicate(id=${tx.id})},data-description=${tx.description},data-month=${tx.movementMonth}"
+                      th:title="${duplicatedToNextMonthIds.contains(tx.id)} ? 'Ya fue duplicado al siguiente mes' : 'Duplicar al siguiente mes'">
+                <i class="bi bi-copy me-1" aria-hidden="true"></i>Duplicar
+              </button>
+              <form method="post" th:action="@{/finances/{id}/delete(id=${tx.id})}" class="m-0">
+                <input type="hidden" name="month" th:value="${selectedMonth}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash3 me-1" aria-hidden="true"></i>Eliminar
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <tr th:if="${#lists.isEmpty(transactions)}">
+          <td colspan="8" class="text-center text-muted py-4">No hay movimientos en este mes.</td>
+        </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- WORKSPACE: GRAFICO RESUMEN + MOVIMIENTOS RECIENTES -->
+  <div class="finance-workspace-grid finance-workspace-grid-summary mb-4">
+    <!-- GRAFICO RESUMEN -->
+    <div class="card-panel">
+      <div class="card-panel-header">
+        <div>
+          <h3><i class="bi bi-pie-chart-fill text-primary"></i> Resumen del Mes</h3>
+          <p>Ingresos vs Gastos vs Ahorros</p>
+        </div>
+      </div>
+      <div class="chart-container-panel" style="height: 280px;">
+        <canvas id="financeOverviewChart"></canvas>
+      </div>
+    </div>
+
+    <!-- MOVIMIENTOS RECIENTES -->
+    <div class="card-panel">
+      <div class="card-panel-header">
+        <div>
+          <h3><i class="bi bi-clock-history text-muted"></i> Recientes</h3>
+          <p>Últimos movimientos registrados</p>
+        </div>
+      </div>
+      <div th:if="${#lists.isEmpty(recentTransactions)}" class="empty-state-modern">
+        <i class="bi bi-cash-stack"></i>
+        <p class="mb-0">Aún no hay movimientos.</p>
+      </div>
+      <div th:each="tx : ${recentTransactions}" class="transaction-item">
+        <div class="tx-left">
+          <div class="tx-type-icon"
+               th:classappend="${tx.type.name() == 'INGRESO'} ? 'icon-income' : (${tx.type.name() == 'GASTO'} ? 'icon-expense' : 'icon-saving')">
+            <i th:if="${tx.type.name() == 'INGRESO'}" class="bi bi-arrow-down-left"></i>
+            <i th:if="${tx.type.name() == 'GASTO'}" class="bi bi-arrow-up-right"></i>
+            <i th:if="${tx.type.name() == 'AHORRO'}" class="bi bi-piggy-bank"></i>
+          </div>
+          <div class="tx-text">
+            <strong th:text="${tx.description != null && !tx.description.isBlank() ? tx.description : tx.category}"></strong>
+            <span><span th:text="${tx.transactionDate != null ? tx.transactionDate : '-'}"></span> &middot; <span th:text="${tx.category}"></span></span>
+          </div>
+        </div>
+        <div class="tx-amount"
+             th:classappend="${tx.type.name() == 'INGRESO'} ? 'income' : (${tx.type.name() == 'GASTO'} ? 'expense' : 'saving')">
+          <span th:text="${tx.type.name() == 'INGRESO' ? '+' : (tx.type.name() == 'GASTO' ? '-' : '')}"></span>S/ <span th:text="${#numbers.formatDecimal(tx.amount, 1, 2)}"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GRAFICOS DETALLADOS -->
+  <div class="row g-4 mb-4">
+    <!-- MOVIMIENTO DIARIO -->
+    <div class="col-lg-8">
+      <div class="card-panel h-100">
+        <div class="card-panel-header">
+          <div>
+            <h3><i class="bi bi-graph-up text-primary"></i> Movimiento Diario</h3>
+            <p>Flujo por día dentro del mes seleccionado</p>
+          </div>
+        </div>
+        <div class="chart-container-panel" style="height: 260px;">
+          <canvas id="dailyFinanceChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- GASTOS POR CATEGORIA -->
+    <div class="col-lg-4">
+      <div class="card-panel h-100">
+        <div class="card-panel-header">
+          <div>
+            <h3><i class="bi bi-tags-fill text-danger"></i> Gastos por Categoría</h3>
+            <p>Distribución del gasto mensual</p>
+          </div>
+        </div>
+        <div class="chart-container-panel" style="height: 260px;">
+          <canvas id="categoryExpenseChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ULTIMOS 6 MESES -->
+    <div class="col-12">
+      <div class="card-panel">
+        <div class="card-panel-header">
+          <div>
+            <h3><i class="bi bi-bar-chart-fill text-success"></i> Comparativo Últimos 6 Meses</h3>
+            <p>Evolución histórica semestral</p>
+          </div>
+        </div>
+        <div class="chart-container-panel" style="height: 240px;">
+          <canvas id="monthlyFinanceChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+</main>
+
+<!-- MODAL NUEVA CATEGORIA -->
+<div class="modal fade" id="newCategoryModal" tabindex="-1" aria-labelledby="newCategoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content app-modal-content">
+      <form method="post" th:action="@{/finances/categories}">
+        <input type="hidden" name="month" th:value="${selectedMonth}">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5" id="newCategoryModalLabel">Nueva Categoría</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div th:if="${categoryError}" id="categoryError" class="alert alert-danger" role="alert" th:text="${categoryError}"></div>
+          <label for="newCategoryName" class="form-label">Nombre de la categoría</label>
+          <input id="newCategoryName" name="name" class="form-control" maxlength="100" required
+                 th:value="${categoryName}" placeholder="Ej. Mascotas">
+          <p class="text-muted small mt-2 mb-0">Estará disponible al crear y editar movimientos.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-dark">Guardar Categoría</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NUEVO MOVIMIENTO -->
+<div class="modal fade" id="newTransactionModal" tabindex="-1" aria-labelledby="newTransactionModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content app-modal-content">
+      <form id="transactionForm" method="post" th:action="@{/finances}" th:object="${transaction}">
+        <div class="modal-header">
+          <div>
+            <h2 class="modal-title fs-5" id="newTransactionModalLabel"><i class="bi bi-plus-circle-fill text-success me-2"></i>Nuevo Movimiento</h2>
+            <p id="transactionModalSubtitle" class="modal-subtitle mb-0">Registra un ingreso, gasto o ahorro</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body vstack gap-3">
+          <div>
+            <label for="type" class="form-label fw-bold small text-muted">Tipo de Movimiento</label>
+            <select id="type" class="form-select" th:field="*{type}">
+              <option th:each="t : ${types}" th:value="${t}" th:text="${t.label}"></option>
+            </select>
+          </div>
+          <div>
+            <label for="amount" class="form-label fw-bold small text-muted">Monto (S/)</label>
+            <div class="input-group">
+              <span class="input-group-text">S/</span>
+              <input id="amount" class="form-control" type="number" step="0.01" min="0.01" th:field="*{amount}" placeholder="0.00" required>
+            </div>
+          </div>
+          <div>
+            <label for="category" class="form-label fw-bold small text-muted">Categoría</label>
+            <select id="category" class="form-select" th:field="*{category}">
+              <option th:each="categoryName : ${categories}" th:value="${categoryName}" th:text="${categoryName == 'Alimentacion' ? 'Alimentación' : categoryName}"></option>
+            </select>
+          </div>
+          <div id="bankField" hidden>
+            <label for="bank" class="form-label fw-bold small text-muted">Escoge Banco</label>
+            <select id="bank" class="form-select" th:field="*{bank}" disabled>
+              <option value="">Escoge Banco</option>
+              <option th:each="bankName : ${banks}" th:value="${bankName}" th:text="${bankName}"></option>
+            </select>
+          </div>
+          <div>
+            <label for="description" class="form-label fw-bold small text-muted">Descripción</label>
+            <input id="description" class="form-control" th:field="*{description}" placeholder="Detalle del movimiento">
+          </div>
+          <div class="form-check">
+            <input id="hasPaymentDate" class="form-check-input" type="checkbox">
+            <label for="hasPaymentDate" class="form-check-label">Indicar fecha de pago</label>
+          </div>
+          <div id="paymentDateField" hidden>
+            <label for="transactionDate" class="form-label fw-bold small text-muted">Fecha de pago</label>
+            <input id="transactionDate" class="form-control" type="date" name="transactionDate" disabled>
+          </div>
+          <div id="movementMonthField">
+            <label for="movementMonth" class="form-label fw-bold small text-muted">Mes del movimiento</label>
+            <input id="movementMonth" name="movementMonth" type="month" class="form-control" th:value="${selectedMonth}" required>
+            <p class="small text-muted mb-0 mt-2">Se incluirá en el resumen de este mes, aunque no tenga fecha de pago.</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-dark"><i class="bi bi-check-lg me-1"></i>Guardar Movimiento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="duplicateTransactionModal" tabindex="-1" aria-labelledby="duplicateTransactionTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content app-modal-content">
+      <form id="duplicateTransactionForm" method="post" data-confirm-action="duplicate">
+        <input type="hidden" th:if="${_csrf != null}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+        <input type="hidden" name="sortAmount" th:value="${sortAmount}">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5" id="duplicateTransactionTitle">Duplicar movimiento</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <p id="duplicateTransactionDetails"></p>
+          <label for="duplicateScope" class="form-label">Crear copias en</label>
+          <select id="duplicateScope" name="scope" class="form-select" required>
+            <option value="NEXT_MONTH">El siguiente mes</option>
+            <option value="REST_OF_YEAR">Todos los meses restantes del año (hasta diciembre)</option>
+          </select>
+          <p class="small text-muted mt-3 mb-0">Se conserva el día de pago; si no existe en el mes de destino, se usa su último día. Sin fecha de pago, las copias tampoco tendrán fecha. Cada copia se puede editar por separado. Los meses ya copiados se omiten.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-dark">Crear copias</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  if (document.getElementById('categoryError')) {
+    new bootstrap.Modal(document.getElementById('newCategoryModal')).show();
+  }
+  const transactionModal = document.getElementById('newTransactionModal');
+  const transactionForm = document.getElementById('transactionForm');
+  const createTransactionUrl = transactionForm.action;
+  const paymentCheckbox = document.getElementById('hasPaymentDate');
+  const paymentInput = document.getElementById('transactionDate');
+  const movementMonthInput = document.getElementById('movementMonth');
+  function updatePaymentField() {
+    const enabled = paymentCheckbox.checked;
+    if (enabled && !paymentInput.value) {
+      const today = new Date();
+      paymentInput.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      movementMonthInput.value = paymentInput.value.slice(0, 7);
+    }
+    document.getElementById('paymentDateField').hidden = !enabled;
+    paymentInput.disabled = !enabled;
+    paymentInput.required = enabled;
+    document.getElementById('movementMonthField').hidden = enabled;
+    movementMonthInput.disabled = enabled;
+    movementMonthInput.required = !enabled;
+  }
+  paymentCheckbox.addEventListener('change', updatePaymentField);
+  paymentInput.addEventListener('change', () => {
+    if (paymentInput.value) movementMonthInput.value = paymentInput.value.slice(0, 7);
+  });
+  document.getElementById('duplicateTransactionModal').addEventListener('show.bs.modal', event => {
+    const button = event.relatedTarget;
+    document.getElementById('duplicateTransactionForm').action = button.dataset.url;
+    document.getElementById('duplicateScope').value = 'NEXT_MONTH';
+    document.getElementById('duplicateTransactionDetails').textContent =
+      (button.dataset.description || 'Movimiento') + ' / Mes de origen: ' + button.dataset.month;
+    const yearly = document.querySelector('#duplicateScope option[value=\"REST_OF_YEAR\"]');
+    yearly.disabled = button.dataset.month.endsWith('-12');
+  });
+  const bankSelect = document.getElementById('bank');
+  function updateBankField() {
+    const isBank = document.getElementById('category').value.trim().toLowerCase() === 'bancos';
+    document.getElementById('bankField').hidden = !isBank;
+    bankSelect.disabled = !isBank;
+    bankSelect.required = isBank;
+    if (!isBank) bankSelect.value = '';
+  }
+  document.getElementById('category').addEventListener('change', updateBankField);
+  transactionModal.addEventListener('show.bs.modal', event => {
+    const button = event.relatedTarget;
+    const editing = Boolean(button && button.dataset.editUrl);
+    transactionForm.reset();
+    transactionForm.querySelectorAll('option[data-custom-category]').forEach(option => option.remove());
+    transactionForm.action = editing ? button.dataset.editUrl : createTransactionUrl;
+    document.getElementById('newTransactionModalLabel').textContent = editing ? 'Editar Movimiento' : 'Nuevo Movimiento';
+    document.getElementById('transactionModalSubtitle').textContent = editing
+      ? 'Actualiza los datos del movimiento' : 'Registra un ingreso, gasto o ahorro';
+    if (editing) {
+      const category = document.getElementById('category');
+      const value = button.dataset.category || '';
+      if (!Array.from(category.options).some(option => option.value === value)) {
+        const option = new Option(value, value);
+        option.dataset.customCategory = 'true';
+        category.add(option);
+      }
+      document.getElementById('type').value = button.dataset.type;
+      document.getElementById('amount').value = button.dataset.amount;
+      category.value = value;
+      bankSelect.value = button.dataset.bank || '';
+      document.getElementById('description').value = button.dataset.description || '';
+      paymentInput.value = button.dataset.date || '';
+      paymentCheckbox.checked = Boolean(button.dataset.date);
+      movementMonthInput.value = button.dataset.month;
+    }
+    updateBankField();
+    updatePaymentField();
+  });
+
+  // Ordenamiento de montos (mayor a menor y menor a mayor)
+  const sortAmountHeader = document.getElementById('sortAmountHeader');
+  const sortAmountIcon = document.getElementById('sortAmountIcon');
+  let currentSort = document.getElementById('filterSortAmount').value || '';
+
+  if (sortAmountHeader) {
+    sortAmountHeader.addEventListener('click', () => {
+      const nextSort = currentSort === 'desc' ? 'asc' : 'desc';
+      currentSort = nextSort;
+      document.getElementById('filterSortAmount').value = nextSort;
+
+      const url = new URL(window.location);
+      url.searchParams.set('sortAmount', nextSort);
+      window.history.replaceState({}, '', url);
+
+      const tbody = document.querySelector('#monthlyTransactions table tbody');
+      if (tbody) {
+        const rows = Array.from(tbody.querySelectorAll('tr[data-amount]'));
+        if (rows.length > 1) {
+          rows.sort((a, b) => {
+            const valA = parseFloat(a.dataset.amount || 0);
+            const valB = parseFloat(b.dataset.amount || 0);
+            return nextSort === 'desc' ? (valB - valA) : (valA - valB);
+          });
+          rows.forEach((row, idx) => {
+            tbody.appendChild(row);
+            const numCell = row.querySelector('.row-number');
+            if (numCell) numCell.textContent = idx + 1;
+          });
+        }
+      }
+
+      if (nextSort === 'desc') {
+        sortAmountIcon.className = 'bi bi-sort-numeric-down-alt text-primary';
+        sortAmountHeader.setAttribute('title', 'Ordenado de mayor a menor. Haz clic para ordenar de menor a mayor.');
+      } else {
+        sortAmountIcon.className = 'bi bi-sort-numeric-down text-primary';
+        sortAmountHeader.setAttribute('title', 'Ordenado de menor a mayor. Haz clic para ordenar de mayor a menor.');
+      }
+    });
+  }
+</script>
+
+<script th:inline="javascript">
+  const financeLabels = /*[[${financeChartLabels}]]*/ [];
+  const financeValues = /*[[${financeChartValues}]]*/ [];
+  const dailyLabels = /*[[${dailyLabels}]]*/ [];
+  const dailyIncome = /*[[${dailyIncome}]]*/ [];
+  const dailyExpenses = /*[[${dailyExpenses}]]*/ [];
+  const dailySavings = /*[[${dailySavings}]]*/ [];
+  const categoryLabels = /*[[${categoryLabels}]]*/ [];
+  const categoryExpenses = /*[[${categoryExpenses}]]*/ [];
+  const monthLabels = /*[[${monthLabels}]]*/ [];
+  const monthlyIncome = /*[[${monthlyIncome}]]*/ [];
+  const monthlyExpenses = /*[[${monthlyExpenses}]]*/ [];
+  const monthlySavings = /*[[${monthlySavings}]]*/ [];
+
+  Chart.defaults.font.family = 'Inter, system-ui, -apple-system, sans-serif';
+  Chart.defaults.color = '#64748b';
+
+  new Chart(document.getElementById('financeOverviewChart'), {
+    type: 'doughnut',
+    data: {
+      labels: financeLabels,
+      datasets: [{
+        data: financeValues,
+        backgroundColor: ['#16a34a', '#ef4444', '#2563eb'],
+        borderWidth: 2,
+        borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '64%',
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+
+  new Chart(document.getElementById('dailyFinanceChart'), {
+    type: 'line',
+    data: {
+      labels: dailyLabels,
+      datasets: [
+        { label: 'Ingresos', data: dailyIncome, borderColor: '#16a34a', backgroundColor: 'rgba(22, 163, 74, .12)', tension: .35, fill: true },
+        { label: 'Gastos', data: dailyExpenses, borderColor: '#ef4444', backgroundColor: 'rgba(239, 68, 68, .10)', tension: .35, fill: true },
+        { label: 'Ahorros', data: dailySavings, borderColor: '#2563eb', backgroundColor: 'rgba(37, 99, 235, .10)', tension: .35, fill: true }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+
+  new Chart(document.getElementById('categoryExpenseChart'), {
+    type: 'bar',
+    data: {
+      labels: categoryLabels.length ? categoryLabels : ['Sin gastos'],
+      datasets: [{ label: 'Gastos', data: categoryExpenses.length ? categoryExpenses : [0], backgroundColor: '#ef4444', borderRadius: 6 }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  new Chart(document.getElementById('monthlyFinanceChart'), {
+    type: 'bar',
+    data: {
+      labels: monthLabels,
+      datasets: [
+        { label: 'Ingresos', data: monthlyIncome, backgroundColor: '#16a34a', borderRadius: 6 },
+        { label: 'Gastos', data: monthlyExpenses, backgroundColor: '#ef4444', borderRadius: 6 },
+        { label: 'Ahorros', data: monthlySavings, backgroundColor: '#2563eb', borderRadius: 6 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+</script>
+<div th:replace="~{fragments/alerts :: alerts}"></div>
+</body>
+</html>

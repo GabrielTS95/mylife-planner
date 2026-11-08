@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="csrf-token" th:content="${_csrf.token}">
+  <meta name="csrf-header" th:content="${_csrf.headerName}">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Metas Financieras | MyLife Planner</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="dashboard-shell">
+
+<!-- SIDEBAR MODERNO COMPARTIDO -->
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<!-- CONTENIDO PRINCIPAL -->
+<main class="dashboard-main">
+
+  <!-- CABECERA -->
+  <header class="home-topbar">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 fw-bold rounded-pill">
+          <i class="bi bi-wallet2 me-1"></i>FINANZAS &middot; METAS
+        </span>
+      </div>
+      <h1><i class="bi bi-bullseye text-primary"></i> Metas Financieras</h1>
+      <p>Establece objetivos de ahorro y visualiza tu porcentaje de cumplimiento en tiempo real.</p>
+    </div>
+  </header>
+
+  <!-- CONTENIDO: FORMULARIO Y LISTA DE METAS -->
+  <div class="row g-4">
+    <!-- FORMULARIO CREAR META -->
+    <div class="col-lg-4">
+      <div class="card-panel sticky-top" style="top: calc(var(--topbar-height) + 1.5rem);">
+        <div class="card-panel-header">
+          <div>
+            <h3><i class="bi bi-plus-circle-fill text-primary"></i> Nueva Meta</h3>
+            <p>Define un nuevo objetivo financiero</p>
+          </div>
+        </div>
+        <form method="post" th:action="@{/goals}" th:object="${goal}" class="vstack gap-3">
+          <div>
+            <label for="goalName" class="form-label fw-bold small text-muted">Nombre de la Meta</label>
+            <input id="goalName" class="form-control" th:field="*{name}" placeholder="Ej. Fondo de emergencia, Viaje..." required>
+          </div>
+          <div>
+            <label for="targetAmount" class="form-label fw-bold small text-muted">Monto Objetivo (S/)</label>
+            <div class="input-group">
+              <span class="input-group-text">S/</span>
+              <input id="targetAmount" class="form-control" type="number" step="0.01" min="0.01" th:field="*{targetAmount}" placeholder="0.00" required>
+            </div>
+          </div>
+          <div>
+            <label for="currentAmount" class="form-label fw-bold small text-muted">Monto Ahorrado Actual (S/)</label>
+            <div class="input-group">
+              <span class="input-group-text">S/</span>
+              <input id="currentAmount" class="form-control" type="number" step="0.01" min="0.00" th:field="*{currentAmount}" placeholder="0.00" required>
+            </div>
+          </div>
+          <button class="btn btn-dark w-100 py-2"><i class="bi bi-check-lg me-1"></i>Guardar Meta</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- TARJETAS DE METAS -->
+    <div class="col-lg-8">
+      <div th:if="${#lists.isEmpty(goals)}" class="empty-state-modern">
+        <i class="bi bi-bullseye"></i>
+        <p class="mb-2">Aún no tienes metas financieras registradas.</p>
+        <span class="text-muted small">Crea tu primera meta con el formulario de la izquierda.</span>
+      </div>
+
+      <div th:if="${!#lists.isEmpty(goals)}" class="row g-3">
+        <div th:each="g : ${goals}" class="col-md-6">
+          <div class="card-panel h-100 position-relative">
+            <div class="card-panel-header border-0 pb-0 mb-2">
+              <div class="d-flex align-items-center gap-2">
+                <div class="stat-icon-wrapper icon-saving" style="width: 42px; height: 42px; font-size: 1.25rem;">
+                  <i class="bi bi-flag-fill"></i>
+                </div>
+                <h3 class="fs-6 fw-bold" th:text="${g.name}"></h3>
+              </div>
+              <form method="post" th:action="@{/goals/{id}/delete(id=${g.id})}" class="d-inline m-0"><button type="submit" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash3"></i>
+              </button></form>
+            </div>
+
+            <div class="my-2">
+              <div class="d-flex justify-content-between align-items-baseline">
+                <span class="display-6 fw-bold text-primary" th:text="${g.progressPercent + '%'}">0%</span>
+                <span class="badge" th:classappend="${g.progressPercent >= 100} ? 'bg-success' : 'bg-primary-subtle text-primary'"
+                      th:text="${g.progressPercent >= 100 ? '¡Completada!' : 'En progreso'}"></span>
+              </div>
+
+              <div class="progress progress-thin my-3" style="height: 10px;">
+                <div class="progress-bar"
+                     th:classappend="${g.progressPercent >= 100} ? 'bg-success' : 'bg-primary'"
+                     th:style="'width:' + (${g.progressPercent > 100} ? 100 : ${g.progressPercent}) + '%'"></div>
+              </div>
+
+              <div class="d-flex justify-content-between text-muted small fw-semibold">
+                <span>Actual: <strong class="text-dark">S/ <span th:text="${#numbers.formatDecimal(g.currentAmount, 1, 2)}"></span></strong></span>
+                <span>Meta: <strong class="text-dark">S/ <span th:text="${#numbers.formatDecimal(g.targetAmount, 1, 2)}"></span></strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<div th:replace="~{fragments/alerts :: alerts}"></div>
+</body>
+</html>

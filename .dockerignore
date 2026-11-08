@@ -1,0 +1,11 @@
+.git
+.idea
+target
+data
+*.iml
+.DS_Store
+.env
+.env.*
+*.mv.db
+*.trace.db
+*.log

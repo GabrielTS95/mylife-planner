@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="csrf-token" th:content="${_csrf.token}">
+  <meta name="csrf-header" th:content="${_csrf.headerName}">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tablero Kanban | MyLife Planner</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="dashboard-shell">
+
+<!-- SIDEBAR MODERNO COMPARTIDO -->
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<!-- CONTENIDO PRINCIPAL -->
+<main class="dashboard-main">
+
+  <!-- CABECERA DE LA PAGINA -->
+  <header class="home-topbar">
+    <div>
+      <div class="d-flex align-items-center gap-2 mb-1">
+        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 fw-bold rounded-pill">
+          <i class="bi bi-kanban me-1"></i>PRODUCTIVIDAD &middot; KANBAN
+        </span>
+      </div>
+      <h1><i class="bi bi-kanban-fill text-warning"></i> Tablero Kanban</h1>
+      <p>Organiza, prioriza y arrastra tus tareas en los 4 estados de flujo de trabajo.</p>
+    </div>
+    <div class="home-topbar-actions">
+      <button type="button" class="btn btn-dark rounded-pill px-3 py-2" data-bs-toggle="modal" data-bs-target="#newTaskModal">
+        <i class="bi bi-plus-lg me-1"></i>Nueva Tarea
+      </button>
+      <div class="date-pill-chip">
+        <i class="bi bi-calendar-event text-warning fs-5"></i>
+        <span>Semana: <strong th:text="${#temporals.format(weekStart, 'dd/MM')} + ' al ' + ${#temporals.format(weekEnd, 'dd/MM')}"></strong></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- TABLERO KANBAN (4 ESTADOS) -->
+  <div th:if="${#lists.isEmpty(tasks)}" class="empty-state-modern mb-4">
+    <i class="bi bi-card-checklist"></i>
+    <p class="mb-0">No tienes tareas registradas actualmente.</p>
+  </div>
+
+  <section class="kanban-board-grid mb-4" aria-label="Tablero Kanban de tareas">
+    <article th:each="status : ${statuses}"
+             th:with="columnTasks=${tasksByStatus.get(status)}"
+             class="kanban-column-full"
+             th:attr="data-status=${status.name()}">
+      
+      <header class="kanban-col-head"
+              th:classappend="${status.name() == 'POR_HACER'} ? 'col-head-todo' : (${status.name() == 'EN_PROCESO'} ? 'col-head-progress' : (${status.name() == 'BLOQUEADO'} ? 'col-head-blocked' : 'col-head-done'))">
+        <div class="d-flex align-items-center gap-2">
+          <i th:if="${status.name() == 'POR_HACER'}" class="bi bi-hourglass-split"></i>
+          <i th:if="${status.name() == 'EN_PROCESO'}" class="bi bi-lightning-charge-fill"></i>
+          <i th:if="${status.name() == 'BLOQUEADO'}" class="bi bi-slash-circle-fill"></i>
+          <i th:if="${status.name() == 'FINALIZADO'}" class="bi bi-check-circle-fill"></i>
+          <span th:text="${status.label}"></span>
+        </div>
+        <span th:text="${#lists.size(columnTasks)}">0</span>
+      </header>
+
+      <div class="kanban-column-body-full">
+        <div th:if="${#lists.isEmpty(columnTasks)}" class="text-center py-4 text-muted small">
+          <i class="bi bi-inbox opacity-25 d-block fs-3 mb-1"></i> Sin tareas
+        </div>
+
+        <div th:each="t : ${columnTasks}" class="kanban-card" draggable="true" th:attr="data-task-id=${t.id}">
+          <div class="kanban-card-top">
+            <strong th:text="${t.title}"></strong>
+            <span class="priority-pill"
+                  th:classappend="${t.priority.name() == 'ALTA'} ? 'priority-high' : (${t.priority.name() == 'MEDIA'} ? 'priority-medium' : 'priority-low')"
+                  th:text="${t.priority}"></span>
+          </div>
+          <p th:if="${t.description != null && !t.description.isBlank()}" th:text="${t.description}"></p>
+          <div class="text-muted small mb-2">
+            <i class="bi bi-clock me-1"></i>
+            <span th:text="${t.dueDate != null ? 'Vence: ' + t.dueDate : 'Sin fecha límite'}"></span>
+          </div>
+
+          <div class="kanban-actions-row">
+            <!-- ACCIONES POR ESTADO -->
+            <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='EN_PROCESO')}" class="d-inline m-0" th:if="${t.status.name() == 'POR_HACER'}"><button type="submit"
+               class="btn btn-sm btn-outline-primary">Iniciar</button></form>
+            <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='BLOQUEADO')}" class="d-inline m-0" th:if="${t.status.name() == 'POR_HACER'}"><button type="submit"
+               class="btn btn-sm btn-outline-danger">Bloquear</button></form>
+
+            <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='POR_HACER')}" class="d-inline m-0" th:if="${t.status.name() == 'EN_PROCESO'}"><button type="submit"
+               class="btn btn-sm btn-outline-secondary">Por hacer</button></form>
+            <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='FINALIZADO')}" class="d-inline m-0" th:if="${t.status.name() == 'EN_PROCESO'}"><button type="submit"
+               class="btn btn-sm btn-outline-success">Finalizar</button></form>
+            <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='BLOQUEADO')}" class="d-inline m-0" th:if="${t.status.name() == 'EN_PROCESO'}"><button type="submit"
+               class="btn btn-sm btn-outline-danger">Bloquear</button></form>
+
+            <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='EN_PROCESO')}" class="d-inline m-0" th:if="${t.status.name() == 'BLOQUEADO'}"><button type="submit"
+               class="btn btn-sm btn-outline-warning">Desbloquear</button></form>
+            <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='POR_HACER')}" class="d-inline m-0" th:if="${t.status.name() == 'BLOQUEADO'}"><button type="submit"
+               class="btn btn-sm btn-outline-secondary">Por hacer</button></form>
+
+            <form method="post" th:action="@{/tasks/{id}/status/{status}(id=${t.id},status='POR_HACER')}" class="d-inline m-0" th:if="${t.status.name() == 'FINALIZADO'}"><button type="submit"
+               class="btn btn-sm btn-outline-secondary">Reabrir</button></form>
+
+            <form method="post" th:action="@{/tasks/{id}/delete(id=${t.id})}" class="d-inline m-0"><button type="submit" class="btn btn-sm btn-outline-danger ms-auto"><i class="bi bi-trash3"></i></button></form>
+          </div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+</main>
+
+<!-- MODAL NUEVA TAREA -->
+<div class="modal fade" id="newTaskModal" tabindex="-1" aria-labelledby="newTaskModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content app-modal-content">
+      <form method="post" th:action="@{/tasks}" th:object="${task}">
+        <div class="modal-header">
+          <div>
+            <h2 class="modal-title fs-5" id="newTaskModalLabel"><i class="bi bi-plus-circle-fill text-warning me-2"></i>Nueva Tarea</h2>
+            <p class="modal-subtitle mb-0">Anade un pendiente a tu flujo de trabajo</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+        <div class="modal-body">
+          <div class="kanban-form-grid">
+            <div class="form-field title-field">
+              <label for="title" class="form-label fw-bold small text-muted">Tarea</label>
+              <input id="title" class="form-control" th:field="*{title}" placeholder="¿Qué necesitas hacer?" required>
+            </div>
+            <div class="form-field">
+              <label for="dueDate" class="form-label fw-bold small text-muted">Fecha limite</label>
+              <input id="dueDate" class="form-control" type="date" th:field="*{dueDate}">
+            </div>
+            <div class="form-field">
+              <label for="priority" class="form-label fw-bold small text-muted">Prioridad</label>
+              <select id="priority" class="form-select" th:field="*{priority}">
+                <option th:each="p : ${priorities}" th:value="${p}" th:text="${p}"></option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="status" class="form-label fw-bold small text-muted">Estado</label>
+              <select id="status" class="form-select" th:field="*{status}">
+                <option th:each="s : ${statuses}" th:value="${s}" th:text="${s.label}"></option>
+              </select>
+            </div>
+            <div class="form-field description-field">
+              <label for="description" class="form-label fw-bold small text-muted">Descripción</label>
+              <input id="description" class="form-control" th:field="*{description}" placeholder="Notas o detalles adicionales">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-dark"><i class="bi bi-plus-lg me-1"></i>Guardar Tarea</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Drag and Drop
+  document.querySelectorAll('.kanban-card[draggable="true"]').forEach(card => {
+    card.addEventListener('dragstart', event => {
+      event.dataTransfer.setData('text/plain', card.dataset.taskId);
+      card.classList.add('is-dragging');
+    });
+
+    card.addEventListener('dragend', () => {
+      card.classList.remove('is-dragging');
+    });
+  });
+
+  document.querySelectorAll('.kanban-column-full[data-status]').forEach(column => {
+    column.addEventListener('dragover', event => {
+      event.preventDefault();
+      column.classList.add('drag-over');
+    });
+
+    column.addEventListener('dragleave', () => {
+      column.classList.remove('drag-over');
+    });
+
+    column.addEventListener('drop', async event => {
+      event.preventDefault();
+      column.classList.remove('drag-over');
+      const taskId = event.dataTransfer.getData('text/plain');
+      const status = column.dataset.status;
+
+      if (!taskId || !await AppAlerts.confirm('edit')) return;
+      try {
+        const response = await fetch(`/tasks/${taskId}/status/${status}?inline=true`, { method: 'POST', headers: { [document.querySelector('meta[name="csrf-header"]').content]: document.querySelector('meta[name="csrf-token"]').content } });
+        if (!response.ok || response.redirected) throw new Error('No se pudo actualizar la tarea');
+        await AppAlerts.success('El estado de la tarea se actualiz\u00f3 correctamente.');
+        window.location.reload();
+      } catch (error) {
+        await AppAlerts.error('No se pudo actualizar la tarea. Intenta nuevamente.');
+      }
+    });
+  });
+</script>
+<div th:replace="~{fragments/alerts :: alerts}"></div>
+</body>
+</html>

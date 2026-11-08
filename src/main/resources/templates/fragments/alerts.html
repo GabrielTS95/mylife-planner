@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="alerts">
+  <link rel="stylesheet" th:href="@{/css/alerts.css}">
+  <div id="actionFeedback" hidden th:attr="data-success=${actionSuccess}"></div>
+  <script th:src="@{/js/alerts.js}"></script>
+</div>
+</body>
+</html>

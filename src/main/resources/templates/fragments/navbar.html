@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<!-- COMPONENTE COMPARTIDO: HEADER SUPERIOR + SIDEBAR RESPONSIVE + DARK MODE -->
+<div th:fragment="navbar">
+
+  <!-- TOP HEADER BAR BONITO -->
+  <header class="app-topbar-header">
+    <div class="topbar-left">
+      <button type="button" class="btn-sidebar-toggle" id="sidebarToggleBtn" aria-label="Alternar menú lateral">
+        <i class="bi bi-list"></i>
+      </button>
+      <a class="topbar-brand" th:href="@{/}">
+        <span class="brand-mark-sm"><i class="bi bi-compass-fill"></i></span>
+        <span class="brand-text">MyLife <span class="brand-highlight">Planner</span></span>
+      </a>
+    </div>
+
+    <div class="topbar-right">
+      <!-- FECHA HOY CHIP -->
+      <div class="topbar-date-chip d-none d-md-flex">
+        <i class="bi bi-calendar2-week text-primary"></i>
+        <span>Hoy: <strong id="topbarCurrentDate" th:text="${#temporals.format(today != null ? today : #temporals.createToday(), 'dd/MM/yyyy')}">13/09/2026</strong></span>
+      </div>
+
+      <!-- BOTON MODO NOCHE / MODO CLARO -->
+      <button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Cambiar tema claro / oscuro" aria-label="Cambiar tema">
+        <i class="bi bi-moon-stars-fill theme-icon-dark"></i>
+        <i class="bi bi-sun-fill theme-icon-light"></i>
+        <span class="d-none d-sm-inline ms-1 theme-text">Modo Noche</span>
+      </button>
+
+      <!-- PERFIL / LOGIN AVATAR -->
+      <div class="dropdown user-profile-dropdown">
+        <button class="user-avatar-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <div class="avatar-circle">
+            <span>E</span>
+            <span class="status-indicator"></span>
+          </div>
+          <div class="user-meta d-none d-lg-block text-start">
+            <strong class="user-name" th:text="${signedInUsername}">erwintorr</strong>
+            <small class="user-role">Planificador</small>
+          </div>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 profile-menu">
+          <li class="dropdown-header">
+            <strong th:text="${signedInUsername}">erwintorr</strong>
+            <small class="d-block text-muted">Cuenta personal</small>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item" th:href="@{/}"><i class="bi bi-house-door me-2"></i>Home</a></li>
+          <li><a class="dropdown-item" th:href="@{/finances}"><i class="bi bi-receipt me-2"></i>Movimientos</a></li>
+          <li><a class="dropdown-item" th:href="@{/goals}"><i class="bi bi-bullseye me-2"></i>Metas</a></li>
+          <li><a class="dropdown-item" th:href="@{/tasks}"><i class="bi bi-kanban me-2"></i>Tareas</a></li>
+          <li><a class="dropdown-item" th:href="@{/activities}"><i class="bi bi-calendar-week me-2"></i>Mi semana</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><form method="post" th:action="@{/logout}" data-confirm-action="logout">
+            <button class="dropdown-item text-danger" type="submit"><i class="bi bi-box-arrow-right me-2"></i>Cerrar sesión</button>
+          </form></li>
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <!-- BACKDROP OVERLAY PARA MOBILE -->
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+  <!-- SIDEBAR LATERAL (COLAPSABLE / DESPLEGABLE) -->
+  <aside class="app-sidebar" id="appSidebar">
+    <div class="sidebar-header-row">
+      <a class="sidebar-brand" th:href="@{/}">
+        <span class="brand-mark"><i class="bi bi-compass-fill"></i></span>
+        <div class="brand-info">
+          <strong>MyLife</strong>
+          <span>Planner</span>
+        </div>
+      </a>
+      <button type="button" class="btn-sidebar-close d-lg-none" id="sidebarCloseBtn" aria-label="Cerrar menú">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+
+    <!-- NAVEGACION PRINCIPAL -->
+    <nav class="sidebar-nav" aria-label="Navegación principal">
+      <!-- 1. HOME -->
+      <a th:href="@{/}" class="sidebar-nav-item" th:classappend="${activePage == 'home'} ? 'active' : ''">
+        <i class="bi bi-house-door-fill"></i>
+        <span>Home</span>
+      </a>
+
+      <!-- 2. FINANZAS (DESPLEGABLE: MOVIMIENTOS Y METAS) -->
+      <div class="sidebar-menu-group menu-open" id="financesGroup">
+        <div class="sidebar-parent-wrap">
+          <a th:href="@{/finances}" class="sidebar-nav-item sidebar-parent-link"
+             th:classappend="${activePage == 'finances' or activePage == 'goals'} ? 'active' : ''">
+            <div class="nav-item-left">
+              <i class="bi bi-wallet2"></i>
+              <span>Finanzas</span>
+            </div>
+          </a>
+          <button type="button" class="submenu-arrow-btn" id="financesToggleBtn" title="Desplegar submenú" aria-label="Alternar submenú de Finanzas">
+            <i class="bi bi-chevron-down submenu-arrow"></i>
+          </button>
+        </div>
+        <div class="sidebar-submenu" id="financesSubmenu">
+          <a th:href="@{/finances}" class="submenu-item" th:classappend="${activePage == 'finances'} ? 'active' : ''">
+            <i class="bi bi-receipt"></i>
+            <span>Movimientos</span>
+          </a>
+          <a th:href="@{/goals}" class="submenu-item" th:classappend="${activePage == 'goals'} ? 'active' : ''">
+            <i class="bi bi-bullseye"></i>
+            <span>Metas</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- 3. TAREAS -->
+      <a th:href="@{/tasks}" class="sidebar-nav-item" th:classappend="${activePage == 'tasks'} ? 'active' : ''">
+        <i class="bi bi-kanban-fill"></i>
+        <span>Tareas</span>
+      </a>
+
+      <!-- 4. MI SEMANA -->
+      <a th:href="@{/activities}" class="sidebar-nav-item" th:classappend="${activePage == 'activities'} ? 'active' : ''">
+        <i class="bi bi-calendar-week-fill"></i>
+        <span>Mi semana</span>
+      </a>
+    </nav>
+
+    <!-- ACCIONES DIRECTAS EN EL FOOTER DEL SIDEBAR -->
+    <div class="sidebar-actions">
+      <span class="sidebar-section-title">Accesos Rápidos</span>
+      <a th:href="@{/tasks}" class="btn btn-sidebar-action"><i class="bi bi-plus-circle text-warning"></i>Nueva Tarea</a>
+      <a th:href="@{/finances}" class="btn btn-sidebar-action"><i class="bi bi-plus-circle text-success"></i>Nuevo Movimiento</a>
+      <a th:href="@{/goals}" class="btn btn-sidebar-action"><i class="bi bi-plus-circle text-primary"></i>Nueva Meta</a>
+    </div>
+  </aside>
+
+  <!-- SCRIPT GLOBAL DEL LAYOUT (TEMA OSCURO, COLAPSO DE SIDEBAR Y SUBMENÚ) -->
+  <script>
+    (function() {
+      // 1. GESTION DEL TEMA (LIGHT / DARK MODO NOCHE)
+      const themeKey = 'mylife-planner-theme';
+      const storedTheme = localStorage.getItem(themeKey) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      
+      function applyTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        const themeBtn = document.getElementById('themeToggleBtn');
+        if (themeBtn) {
+          const themeText = themeBtn.querySelector('.theme-text');
+          if (themeText) {
+            themeText.textContent = (theme === 'dark') ? 'Modo Claro' : 'Modo Noche';
+          }
+        }
+      }
+      applyTheme(storedTheme);
+
+      window.addEventListener('DOMContentLoaded', () => {
+        applyTheme(localStorage.getItem(themeKey) || storedTheme);
+
+        const themeBtn = document.getElementById('themeToggleBtn');
+        if (themeBtn) {
+          themeBtn.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+            const nextTheme = (currentTheme === 'dark') ? 'light' : 'dark';
+            localStorage.setItem(themeKey, nextTheme);
+            applyTheme(nextTheme);
+          });
+        }
+
+        // 2. TOGGLE / COLAPSO DEL SIDEBAR (DESKTOP & MOBILE)
+        const sidebar = document.getElementById('appSidebar');
+        const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+        const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+        const backdrop = document.getElementById('sidebarBackdrop');
+
+        function toggleSidebar() {
+          if (window.innerWidth >= 992) {
+            // En desktop: colapsa o expande el layout
+            document.body.classList.toggle('sidebar-collapsed');
+            localStorage.setItem('mylife-sidebar-collapsed', document.body.classList.contains('sidebar-collapsed'));
+          } else {
+            // En mobile / tablet: abre/cierra como drawer offcanvas
+            sidebar.classList.toggle('sidebar-mobile-open');
+            backdrop.classList.toggle('active');
+          }
+        }
+
+        function closeMobileSidebar() {
+          if (sidebar) sidebar.classList.remove('sidebar-mobile-open');
+          if (backdrop) backdrop.classList.remove('active');
+        }
+
+        if (sidebarToggleBtn) sidebarToggleBtn.addEventListener('click', toggleSidebar);
+        if (sidebarCloseBtn) sidebarCloseBtn.addEventListener('click', closeMobileSidebar);
+        if (backdrop) backdrop.addEventListener('click', closeMobileSidebar);
+
+        // Restaurar estado colapsado en desktop
+        if (window.innerWidth >= 992 && localStorage.getItem('mylife-sidebar-collapsed') === 'true') {
+          document.body.classList.add('sidebar-collapsed');
+        }
+
+        // 3. SUBMENU DE FINANZAS
+        const financesToggleBtn = document.getElementById('financesToggleBtn');
+        const financesGroup = document.getElementById('financesGroup');
+        if (financesToggleBtn && financesGroup) {
+          financesToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            financesGroup.classList.toggle('menu-open');
+          });
+        }
+      });
+    })();
+  </script>
+</div>
+
+</body>
+</html>

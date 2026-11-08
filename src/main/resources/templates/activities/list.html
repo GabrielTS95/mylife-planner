@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="csrf-token" th:content="${_csrf.token}">
+  <meta name="csrf-header" th:content="${_csrf.headerName}">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mi Semana | MyLife Planner</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <link rel="stylesheet" th:href="@{/css/app.css}">
+</head>
+<body class="dashboard-shell calendar-page">
+
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<main class="dashboard-main calendar-main">
+  <section class="calendar-app-shell">
+    <header class="calendar-app-header">
+      <div class="calendar-title-block">
+        <span class="calendar-app-icon"><i class="bi bi-calendar3"></i></span>
+        <div>
+          <h1>Mi Semana</h1>
+          <p>Agenda tus bloques, rutinas y compromisos en una vista semanal por horas.</p>
+        </div>
+      </div>
+      <button type="button"
+              class="btn btn-primary calendar-primary-btn"
+              data-bs-toggle="modal"
+              data-bs-target="#newActivityModal"
+              data-new-activity>
+        <i class="bi bi-plus-lg"></i>
+        Nueva Actividad
+      </button>
+    </header>
+
+    <div class="calendar-toolbar">
+      <div class="calendar-nav-group">
+        <a class="calendar-tool-btn"
+           th:href="@{/activities(weekStart=${currentWeekStart},viewMode=${viewMode},filterCategory=${categoryFilter})}">
+          <i class="bi bi-calendar-check"></i>
+          Hoy
+        </a>
+        <a class="calendar-icon-btn"
+           aria-label="Semana anterior"
+           th:href="@{/activities(weekStart=${previousWeekStart},viewMode=${viewMode},filterCategory=${categoryFilter})}">
+          <i class="bi bi-chevron-left"></i>
+        </a>
+        <a class="calendar-icon-btn"
+           aria-label="Semana siguiente"
+           th:href="@{/activities(weekStart=${nextWeekStart},viewMode=${viewMode},filterCategory=${categoryFilter})}">
+          <i class="bi bi-chevron-right"></i>
+        </a>
+        <div class="calendar-month-label">
+          <strong th:text="${monthLabel}">septiembre de 2026</strong>
+          <span th:text="${#temporals.format(weekStart, 'dd/MM')} + ' - ' + ${#temporals.format(weekEnd, 'dd/MM')}">14/09 - 18/09</span>
+        </div>
+      </div>
+
+      <div class="calendar-view-tools">
+        <span class="calendar-status-chip">
+          <i class="bi bi-check2-circle"></i>
+          <span th:text="${calendarStatusText}">Semana libre</span>
+        </span>
+        <form method="get" th:action="@{/activities}" class="calendar-filter-form">
+          <input type="hidden" name="weekStart" th:value="${#temporals.format(weekStart, 'yyyy-MM-dd')}">
+          <input type="hidden" name="viewMode" th:value="${viewMode}">
+          <label for="filterCategory" class="visually-hidden">Filtrar categoría</label>
+          <select id="filterCategory" name="filterCategory" class="calendar-filter-select" onchange="this.form.submit()">
+            <option th:each="category : ${categories}"
+                    th:value="${category}"
+                    th:selected="${category == categoryFilter}"
+                    th:text="${category == 'Todos' ? 'Todas las categorías' : category}">
+              Todas las categorías
+            </option>
+          </select>
+        </form>
+        <div class="calendar-segmented" aria-label="Tipo de semana">
+          <a th:href="@{/activities(weekStart=${weekStart},viewMode='work',filterCategory=${categoryFilter})}"
+             th:classappend="${viewMode == 'work'} ? 'active' : ''">
+            Semana laboral
+          </a>
+          <a th:href="@{/activities(weekStart=${weekStart},viewMode='full',filterCategory=${categoryFilter})}"
+             th:classappend="${viewMode == 'full'} ? 'active' : ''">
+            Completa
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <section class="calendar-summary-strip" aria-label="Resumen de la semana">
+      <div class="calendar-summary-item">
+        <span>Actividades</span>
+        <strong th:text="${totalActivities}">0</strong>
+      </div>
+      <div class="calendar-summary-item">
+        <span>Horas planeadas</span>
+        <strong th:text="${scheduledTimeLabel}">0 min</strong>
+      </div>
+      <div class="calendar-summary-item">
+        <span>Hoy</span>
+        <strong><span th:text="${todayActivitiesCount}">0</span> bloques</strong>
+      </div>
+      <div class="calendar-summary-item calendar-summary-wide">
+        <span>Próximo bloque</span>
+        <strong th:text="${nextActivity != null ? nextActivity.title : 'Libre'}">Libre</strong>
+        <small th:if="${nextActivity != null}">
+          <span th:text="${#temporals.format(nextActivity.activityDate, 'dd/MM')}"></span>
+          <span th:if="${nextActivity.startTime != null}" th:text="${' · ' + #temporals.format(nextActivity.startTime, 'HH:mm')}"></span>
+        </small>
+      </div>
+    </section>
+
+    <section class="planner-board"
+             aria-label="Calendario semanal por horas"
+             th:style="'--calendar-days:' + ${visibleDays} + '; --slot-count:' + ${slotCount}">
+      <div class="planner-grid">
+        <div class="planner-days-header">
+          <div class="planner-corner">
+            <i class="bi bi-clock"></i>
+          </div>
+          <div th:each="entry : ${activitiesByDate}"
+               th:with="dayDate=${entry.key}, dayActivities=${entry.value}"
+               class="planner-day-header"
+               th:classappend="${dayDate.equals(today)} ? 'is-today' : ''">
+            <div>
+              <strong th:text="${#temporals.format(dayDate, 'dd')}">14</strong>
+              <span th:text="${dayLabels[dayDate]}">Lunes</span>
+            </div>
+            <small th:text="${#lists.size(dayActivities)} + ' bloques'">0 bloques</small>
+          </div>
+        </div>
+
+        <div class="planner-timeline">
+          <div class="planner-time-rail">
+            <div th:each="hourLabel : ${hourLabels}" class="planner-hour-label" th:text="${hourLabel}">09:00</div>
+          </div>
+
+          <div th:each="entry : ${activitiesByDate}"
+               th:with="dayDate=${entry.key}, dayActivities=${entry.value}"
+               class="planner-day-lane"
+               th:classappend="${dayDate.equals(today)} ? 'is-today' : ''">
+            <button th:each="slot : ${timeSlots}"
+                    type="button"
+                    class="planner-time-slot"
+                    data-bs-toggle="modal"
+                    data-bs-target="#newActivityModal"
+                    th:attr="data-activity-date=${#temporals.format(dayDate, 'yyyy-MM-dd')},
+                             data-activity-start=${slot.startTime},
+                             data-activity-end=${slot.endTime},
+                             aria-label=${'Nueva actividad el ' + #temporals.format(dayDate, 'dd/MM') + ' a las ' + slot.startTime}">
+              <span class="visually-hidden">Nueva actividad</span>
+            </button>
+
+            <article th:each="a : ${dayActivities}"
+                     class="planner-event"
+                     th:style="${activityStyles[a.id]}"
+                     th:attr="data-activity-id=${a.id},
+                              data-activity-title=${a.title},
+                              data-activity-category=${a.category},
+                              data-activity-date=${#temporals.format(a.activityDate, 'yyyy-MM-dd')},
+                              data-activity-start=${a.startTime != null ? #temporals.format(a.startTime, 'HH:mm') : ''},
+                              data-activity-end=${a.endTime != null ? #temporals.format(a.endTime, 'HH:mm') : ''},
+                              data-activity-notes=${a.notes}">
+              <i class="bi planner-event-watermark"
+                 th:classappend="${activityIcons[a.id]}"
+                 aria-hidden="true"></i>
+              <div class="planner-event-top">
+                <span>
+                  <i class="bi bi-clock-fill"></i>
+                  <span th:text="${a.startTime != null ? #temporals.format(a.startTime, 'HH:mm') : 'Sin hora'}">09:00</span>
+                  <span th:if="${a.endTime != null}" th:text="${' - ' + #temporals.format(a.endTime, 'HH:mm')}"> - 10:00</span>
+                </span>
+                <div class="planner-event-actions">
+                  <button type="button" class="planner-event-btn" title="Editar actividad" aria-label="Editar actividad" data-edit-activity>
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button type="button" class="planner-event-btn" title="Duplicar actividad" aria-label="Duplicar actividad" data-copy-activity>
+                    <i class="bi bi-files"></i>
+                  </button>
+                  <form method="post" th:action="@{/activities/{id}/delete(id=${a.id},weekStart=${weekStart},viewMode=${viewMode},filterCategory=${categoryFilter})}" class="d-inline m-0"><button type="submit" class="planner-event-btn danger"
+                     title="Eliminar actividad"
+                     aria-label="Eliminar actividad">
+                    <i class="bi bi-trash3"></i>
+                  </button></form>
+                </div>
+              </div>
+              <h2 th:text="${a.title}">Actividad</h2>
+              <div class="planner-event-meta">
+                <span th:text="${a.category}">Trabajo</span>
+              </div>
+              <p th:if="${a.notes != null && !a.notes.isBlank()}" th:text="${a.notes}">Notas</p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+  </section>
+</main>
+
+<div class="modal fade"
+     id="newActivityModal"
+     tabindex="-1"
+     aria-labelledby="newActivityModalLabel"
+     aria-hidden="true"
+     th:attr="data-default-date=${#temporals.format(today, 'yyyy-MM-dd')}">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content app-modal-content">
+      <form method="post" th:action="@{/activities}" th:object="${activity}" id="activityForm">
+        <input type="hidden" id="activityId" th:field="*{id}">
+        <input type="hidden" name="weekStart" th:value="${#temporals.format(weekStart, 'yyyy-MM-dd')}">
+        <input type="hidden" name="viewMode" th:value="${viewMode}">
+        <input type="hidden" name="filterCategory" th:value="${categoryFilter}">
+
+        <div class="modal-header">
+          <div>
+            <h2 class="modal-title fs-5" id="newActivityModalLabel">
+              <i class="bi bi-plus-circle-fill text-primary me-2"></i>Nueva Actividad
+            </h2>
+            <p class="modal-subtitle mb-0" id="activityModalSubtitle">Define fecha, horario, categoría y notas del bloque.</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="activity-form-grid">
+            <div class="form-field title-field">
+              <label for="title" class="form-label fw-bold small text-muted">Actividad</label>
+              <input id="title" class="form-control" th:field="*{title}" placeholder="¿Qué actividad realizarás?" required>
+            </div>
+            <div class="form-field">
+              <label for="category" class="form-label fw-bold small text-muted">Categoría</label>
+              <select id="category" class="form-select" th:field="*{category}">
+                <option th:each="category : ${categories}"
+                        th:if="${category != 'Todos'}"
+                        th:value="${category}"
+                        th:text="${category}">
+                  Trabajo
+                </option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="activityDate" class="form-label fw-bold small text-muted">Fecha</label>
+              <input id="activityDate" class="form-control" type="date" th:field="*{activityDate}" required>
+            </div>
+            <div class="form-field">
+              <label for="startTime" class="form-label fw-bold small text-muted">Hora Inicio</label>
+              <input id="startTime" class="form-control" type="time" th:field="*{startTime}" required>
+            </div>
+            <div class="form-field">
+              <label for="endTime" class="form-label fw-bold small text-muted">Hora Fin</label>
+              <input id="endTime" class="form-control" type="time" th:field="*{endTime}">
+            </div>
+            <div class="form-field notes-field">
+              <label for="notes" class="form-label fw-bold small text-muted">Notas / Detalles</label>
+              <input id="notes" class="form-control" th:field="*{notes}" placeholder="Notas o enlaces importantes">
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-dark" id="activitySubmitBtn">
+            <i class="bi bi-plus-lg me-1"></i>Guardar Actividad
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const modalElement = document.getElementById('newActivityModal');
+    const form = document.getElementById('activityForm');
+    const modalTitle = document.getElementById('newActivityModalLabel');
+    const modalSubtitle = document.getElementById('activityModalSubtitle');
+    const submitBtn = document.getElementById('activitySubmitBtn');
+    const idInput = document.getElementById('activityId');
+    const titleInput = document.getElementById('title');
+    const categoryInput = document.getElementById('category');
+    const dateInput = document.getElementById('activityDate');
+    const startInput = document.getElementById('startTime');
+    const endInput = document.getElementById('endTime');
+    const notesInput = document.getElementById('notes');
+
+    if (!modalElement || !form) return;
+
+    const defaultDate = modalElement.dataset.defaultDate || '';
+
+    function addMinutes(time, minutes) {
+      if (!time) return '';
+      const [hours, mins] = time.split(':').map(Number);
+      const date = new Date(2000, 0, 1, hours, mins + minutes);
+      return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+    }
+
+    function prepareNewActivity(date, start, end) {
+      form.reset();
+      idInput.value = '';
+      dateInput.value = date || defaultDate;
+      startInput.value = start || '09:00';
+      endInput.value = end || addMinutes(startInput.value, 60);
+      categoryInput.value = categoryInput.value || 'Trabajo';
+      modalTitle.innerHTML = '<i class="bi bi-plus-circle-fill text-primary me-2"></i>Nueva Actividad';
+      modalSubtitle.textContent = 'Define fecha, horario, categoria y notas del bloque.';
+      submitBtn.innerHTML = '<i class="bi bi-plus-lg me-1"></i>Guardar Actividad';
+    }
+
+    document.querySelectorAll('[data-new-activity]').forEach(button => {
+      button.addEventListener('click', () => prepareNewActivity(defaultDate, '09:00', '10:00'));
+    });
+
+    document.querySelectorAll('.planner-time-slot').forEach(slot => {
+      slot.addEventListener('click', () => {
+        prepareNewActivity(slot.dataset.activityDate, slot.dataset.activityStart, slot.dataset.activityEnd);
+      });
+    });
+
+    document.querySelectorAll('[data-edit-activity]').forEach(button => {
+      button.addEventListener('click', () => {
+        const event = button.closest('.planner-event');
+        if (!event) return;
+
+        form.reset();
+        idInput.value = event.dataset.activityId || '';
+        titleInput.value = event.dataset.activityTitle || '';
+        categoryInput.value = event.dataset.activityCategory || 'Trabajo';
+        dateInput.value = event.dataset.activityDate || defaultDate;
+        startInput.value = event.dataset.activityStart || '09:00';
+        endInput.value = event.dataset.activityEnd || addMinutes(startInput.value, 60);
+        notesInput.value = event.dataset.activityNotes || '';
+        modalTitle.innerHTML = '<i class="bi bi-pencil-square text-primary me-2"></i>Editar Actividad';
+        modalSubtitle.textContent = 'Actualiza los datos del bloque seleccionado.';
+        submitBtn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Actualizar Actividad';
+        bootstrap.Modal.getOrCreateInstance(modalElement).show();
+      });
+    });
+
+    document.querySelectorAll('[data-copy-activity]').forEach(button => {
+      button.addEventListener('click', () => {
+        const event = button.closest('.planner-event');
+        if (!event) return;
+
+        form.reset();
+        idInput.value = '';
+        titleInput.value = event.dataset.activityTitle || '';
+        categoryInput.value = event.dataset.activityCategory || 'Trabajo';
+        dateInput.value = event.dataset.activityDate || defaultDate;
+        startInput.value = event.dataset.activityStart || '09:00';
+        endInput.value = event.dataset.activityEnd || addMinutes(startInput.value, 60);
+        notesInput.value = event.dataset.activityNotes || '';
+        modalTitle.innerHTML = '<i class="bi bi-files text-primary me-2"></i>Duplicar Actividad';
+        modalSubtitle.textContent = 'Elige el día destino para crear una copia de esta actividad.';
+        submitBtn.innerHTML = '<i class="bi bi-files me-1"></i>Crear Copia';
+        bootstrap.Modal.getOrCreateInstance(modalElement).show();
+      });
+    });
+  });
+</script>
+<div th:replace="~{fragments/alerts :: alerts}"></div>
+</body>
+</html>
