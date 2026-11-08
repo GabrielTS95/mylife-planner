@@ -95,7 +95,7 @@
       <div th:if="${access.FINANCES or access.GOALS}" class="sidebar-menu-group menu-open" id="financesGroup">
         <div class="sidebar-parent-wrap">
           <a th:href="${access.FINANCES} ? @{/finances} : @{/goals}" class="sidebar-nav-item sidebar-parent-link"
-             th:classappend="${activePage == 'finances' or activePage == 'goals'} ? 'active' : ''">
+             th:classappend="${activePage == 'finances' or activePage == 'cycle' or activePage == 'goals'} ? 'active' : ''">
             <div class="nav-item-left">
               <i class="bi bi-wallet2"></i>
               <span>Finanzas</span>
@@ -113,6 +113,10 @@
           <a th:if="${access.GOALS}" th:href="@{/goals}" class="submenu-item" th:classappend="${activePage == 'goals'} ? 'active' : ''">
             <i class="bi bi-bullseye"></i>
             <span>Metas</span>
+          </a>
+          <a th:if="${access.FINANCES}" th:href="@{/finances/cycle}" class="submenu-item" th:classappend="${activePage == 'cycle'} ? 'active' : ''">
+            <i class="bi bi-calendar2-range"></i>
+            <span>Mi ciclo</span>
           </a>
         </div>
       </div>

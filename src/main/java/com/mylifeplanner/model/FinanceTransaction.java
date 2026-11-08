@@ -12,6 +12,7 @@ public class FinanceTransaction extends UserOwnedEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     @NotNull @DecimalMin("0.01") private BigDecimal amount;
+    @Column(length = 400)
     private String description;
     private String category;
     private String bank;

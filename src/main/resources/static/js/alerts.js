@@ -33,6 +33,16 @@
     });
   }
   const confirm = (action = 'save') => {
+    if (action === 'pay' || action === 'reopen') {
+      const paying = action === 'pay';
+      return show({
+        title: paying ? '¿Confirmar este pago?' : '¿Anular este pago?',
+        message: paying ? 'Confirma que ya pagaste esta cuota. Se creará un gasto con la fecha indicada; no lo registres otra vez en Movimientos.'
+          : 'La cuota volverá a estar pendiente y se eliminará su gasto asociado. Esta acción no devuelve dinero ni cancela pagos en tu banco.',
+        confirmText: paying ? 'Sí, registrar pago' : 'Sí, anular registro',
+        kind: 'confirm', cancel: true
+      });
+    }
     const deleting = action === 'delete';
     const editing = action === 'edit';
     const duplicating = action === 'duplicate';

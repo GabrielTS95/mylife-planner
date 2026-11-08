@@ -1,0 +1,21 @@
+.cycle-period { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 20px; padding: 24px; flex-wrap: wrap; }
+.finance-cycle-page { --bs-body-color: var(--ink); --bs-body-bg: var(--card-bg); --bs-secondary-color: var(--muted); --bs-border-color: var(--line); }
+.finance-cycle-page .table { --bs-table-bg: var(--card-bg); --bs-table-color: var(--ink); --bs-table-border-color: var(--line); }
+[data-theme="dark"] .finance-cycle-page { color-scheme: dark; }
+.cycle-calculation { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 16px 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-bg); color: var(--muted); font-size: .875rem; }
+.cycle-calculation strong { color: var(--ink); }
+.cycle-available { border-color: var(--balance); }
+.cycle-details > summary { padding: 20px; color: var(--ink); font-weight: 600; cursor: pointer; }
+.cycle-details[open] > summary { border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+.cycle-payments-table th, .cycle-payments-table td { padding: 16px; }
+.cycle-payment-actions { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; }
+.cycle-payment-actions form { margin: 0; }
+.cycle-pay-action { min-width: 140px; }
+.cycle-pay-action summary { list-style: none; }
+.cycle-pay-action summary::-webkit-details-marker { display: none; }
+#newPayment { scroll-margin-top: 90px; }
+@media (max-width: 767px) {
+  .cycle-period { padding: 18px; }
+  .cycle-period h2 { font-size: 1.1rem; }
+  .cycle-payments-table { min-width: 740px; }
+}

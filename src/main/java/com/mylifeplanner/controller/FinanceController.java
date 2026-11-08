@@ -55,6 +55,7 @@ public class FinanceController {
         model.addAttribute("transaction", new FinanceTransaction());
         model.addAttribute("types", TransactionType.values());
         model.addAttribute("transactions", transactions);
+        model.addAttribute("linkedPaymentTransactionIds", service.linkedPaymentTransactionIds());
         model.addAttribute("duplicatedToNextMonthIds", duplicatedToNextMonthIds);
         model.addAttribute("selectedMonth", selectedMonth);
         model.addAttribute("sortAmount", sortAmount != null ? sortAmount : "");
@@ -183,6 +184,7 @@ public class FinanceController {
     public String update(@PathVariable Long id,
                          @jakarta.validation.Valid @ModelAttribute FinanceTransaction transaction,
                          @RequestParam(required = false) String movementMonth) {
+        service.requireManualMovement(id);
         FinanceTransaction existing = service.findById(id);
         existing.setAmount(transaction.getAmount());
         existing.setDescription(transaction.getDescription());

@@ -31,6 +31,7 @@
       <p>Registra ingresos, gastos y ahorros para llevar un control financiero exacto.</p>
     </div>
     <div class="home-topbar-actions">
+      <a th:href="@{/finances/cycle}" class="btn btn-outline-success rounded-pill"><i class="bi bi-calendar2-range me-1"></i>Mi ciclo y pagos</a>
       <form method="get" th:action="@{/finances}" class="d-flex align-items-center gap-2">
         <input type="hidden" name="sortAmount" th:value="${sortAmount}" id="filterSortAmount">
         <label for="month" class="fw-bold small text-muted mb-0">Mes:</label>
@@ -158,7 +159,8 @@
             <span th:text="${tx.type.name() == 'INGRESO' ? '+' : (tx.type.name() == 'GASTO' ? '-' : '')}"></span>S/ <span th:text="${#numbers.formatDecimal(tx.amount, 1, 2)}"></span>
           </td>
           <td class="text-end text-nowrap">
-            <div class="d-inline-flex align-items-center gap-2">
+            <a th:if="${linkedPaymentTransactionIds.contains(tx.id)}" th:href="@{/finances/cycle(date=${tx.transactionDate})}" class="btn btn-sm btn-outline-success">Gestionar pago en Mi ciclo</a>
+            <div th:unless="${linkedPaymentTransactionIds.contains(tx.id)}" class="d-inline-flex align-items-center gap-2">
               <button type="button" class="btn btn-sm btn-outline-primary"
                       data-bs-toggle="modal" data-bs-target="#newTransactionModal"
                       th:attr="data-edit-url=@{/finances/{id}/edit(id=${tx.id})},data-type=${tx.type.name()},data-amount=${tx.amount},data-category=${tx.category},data-bank=${tx.bank},data-description=${tx.description},data-date=${tx.transactionDate},data-month=${tx.movementMonth}">

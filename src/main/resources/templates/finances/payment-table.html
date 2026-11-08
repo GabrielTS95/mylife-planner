@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="table(rows)" class="table-responsive">
+  <table class="table align-middle mb-0 cycle-payments-table">
+    <thead><tr><th scope="col">Pago / acreedor</th><th scope="col">Vencimiento</th><th scope="col">Estado al corte</th><th scope="col" class="text-end">Importe</th><th scope="col">Acciones</th></tr></thead>
+    <tbody>
+      <tr th:each="row : ${rows}" th:with="p=${row.payment}">
+        <td><strong th:text="${p.description}"></strong><small class="d-block text-muted" th:text="${p.creditor}"></small>
+          <small th:if="${p.installmentCount > 1}" class="d-block text-muted" th:text="|Cuota ${p.installmentNumber} de ${p.installmentCount}|"></small>
+        </td>
+        <td class="text-nowrap" th:text="${#temporals.format(p.dueDate, 'dd/MM/yyyy')}"></td>
+        <td><span class="badge" th:classappend="${row.paid} ? 'bg-success-subtle text-success' : (${row.overdue} ? 'bg-danger-subtle text-danger' : 'bg-warning-subtle text-warning-emphasis')" th:text="${row.status}"></span>
+          <small th:if="${p.paid}" class="d-block text-muted mt-1" th:text="|Pagado el ${#temporals.format(p.transaction.transactionDate, 'dd/MM/yyyy')}|"></small>
+        </td>
+        <td class="text-end text-nowrap fw-bold">S/ <span th:text="${#numbers.formatDecimal(p.amount, 1, 2)}"></span></td>
+        <td>
+          <div th:if="${!p.paid}" class="cycle-payment-actions">
+            <details class="cycle-pay-action">
+              <summary class="btn btn-sm btn-success">Registrar pago</summary>
+              <form method="post" th:action="@{/finances/cycle/payments/{id}/pay(id=${p.id})}" data-confirm-action="pay" class="pt-2">
+                <label th:for="|paidOn-${p.id}|" class="form-label small">Fecha real del pago</label>
+                <input th:id="|paidOn-${p.id}|" name="paymentDate" type="date" class="form-control form-control-sm mb-2" th:value="${today}" th:max="${today}" required>
+                <button type="submit" class="btn btn-sm btn-success w-100">Confirmar pago</button>
+              </form>
+            </details>
+            <a th:href="@{/finances/cycle/payments/{id}/edit(id=${p.id})}" class="btn btn-sm btn-outline-primary">Editar</a>
+            <form method="post" th:action="@{/finances/cycle/payments/{id}/delete(id=${p.id})}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+            </form>
+          </div>
+          <form th:if="${p.paid}" method="post" th:action="@{/finances/cycle/payments/{id}/reopen(id=${p.id})}" data-confirm-action="reopen">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">Anular pago</button>
+          </form>
+        </td>
+      </tr>
+      <tr th:if="${#lists.isEmpty(rows)}"><td colspan="5" class="text-center text-muted py-4">No hay pagos en esta lista.</td></tr>
+    </tbody>
+  </table>
+</div>
+</body>
+</html>

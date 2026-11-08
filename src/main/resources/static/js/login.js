@@ -245,38 +245,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // =========================================================================
-  // 4. Inclinación 3D Dinámica e Interactiva de la Tarjeta (Tilt Parallax)
+  // 4. Parallax de la ilustración del panel izquierdo
   // =========================================================================
-  const card = document.getElementById('loginCard');
-  const panel = document.getElementById('panelSection');
+  const intro = document.getElementById('introSection');
   const floatingComp = document.getElementById('floating3dComp');
 
-  if (card && panel) {
-    panel.addEventListener('mousemove', (e) => {
-      const rect = card.getBoundingClientRect();
-      const cardCenterX = rect.left + rect.width / 2;
-      const cardCenterY = rect.top + rect.height / 2;
+  if (intro && floatingComp) {
+    intro.addEventListener('mousemove', (e) => {
+      const rect = intro.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
 
-      const deltaX = (e.clientX - cardCenterX) / (rect.width / 2);
-      const deltaY = (e.clientY - cardCenterY) / (rect.height / 2);
+      const deltaX = (e.clientX - centerX) / (rect.width / 2);
+      const deltaY = (e.clientY - centerY) / (rect.height / 2);
 
-      // Inclinación 3D sutil y elegante (hasta 7 grados)
-      const rotateX = (-deltaY * 6).toFixed(2);
-      const rotateY = (deltaX * 6).toFixed(2);
-
-      card.style.transform = `perspective(1200px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(8px)`;
-
-      // Parallax en contra-perspectiva para la figura 3D lateral
-      if (floatingComp) {
-        floatingComp.style.transform = `translateY(calc(-50% + ${-deltaY * 12}px)) translateX(${-deltaX * 10}px) rotateY(${deltaX * 5}deg)`;
-      }
+      floatingComp.style.transform = `translateY(calc(-50% + ${-deltaY * 12}px)) translateX(${-deltaX * 10}px) rotateY(${deltaX * 5}deg)`;
     });
 
-    panel.addEventListener('mouseleave', () => {
-      card.style.transform = 'perspective(1200px) rotateX(0deg) rotateY(0deg) translateZ(0px)';
-      if (floatingComp) {
-        floatingComp.style.transform = 'translateY(-50%) rotateY(0deg)';
-      }
+    intro.addEventListener('mouseleave', () => {
+      floatingComp.style.transform = 'translateY(-50%) rotateY(0deg)';
     });
   }
 });

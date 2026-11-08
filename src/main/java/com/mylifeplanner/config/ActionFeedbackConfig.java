@@ -20,7 +20,7 @@ public class ActionFeedbackConfig implements WebMvcConfigurer {
                 if (view == null || view.getViewName() == null || !view.getViewName().startsWith("redirect:")
                         || response.getStatus() >= 400) return;
                 var flash = RequestContextUtils.getOutputFlashMap(request);
-                if (flash.containsKey("categoryError") || flash.containsKey("actionSuccess")) return;
+                if (flash.containsKey("categoryError") || flash.containsKey("cycleError") || flash.containsKey("actionSuccess")) return;
                 String path = request.getRequestURI();
                 boolean delete = path.endsWith("/delete");
                 boolean update = path.endsWith("/edit") || path.contains("/status/") || path.endsWith("/complete")

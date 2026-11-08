@@ -39,9 +39,24 @@ La consola H2 está desactivada. El acceso a las páginas requiere iniciar sesi�
 - Mi semana / actividades
 - Tareas y prioridades
 - Finanzas: ingresos, gastos y balance
+- Mi ciclo: día de cobro por usuario, saldo inicial y arrastre, pagos pendientes, vencidos y cuotas mensuales
 - Metas financieras
 - Ajustes y administración de usuarios
 
-## Arquitectura
+## Control entre cobros
+
+En **Finanzas → Mi ciclo**, configura el día de cobro (28 por defecto). Cada ciclo termina el día anterior al siguiente cobro; los días 29–31 se ajustan al último día de los meses cortos. Puedes consultar ciclos anteriores.
+
+El saldo se calcula con los ingresos, gastos y ahorros que tienen fecha de pago hasta el corte. Los movimientos futuros o sin fecha no se consideran dinero disponible. El sueldo se registra como ingreso cuando se recibe: configurar el día no genera ingresos. Los movimientos ya existentes con fecha se consideran realizados; revisa las copias mensuales que hayas creado como previsión.
+
+Si necesitas empezar desde un saldo conocido, introduce el saldo disponible al inicio de una fecha. Los movimientos anteriores a ella no se vuelven a sumar. Sin fecha inicial se utiliza todo el historial fechado. El saldo que sobra se arrastra automáticamente y no debe volver a registrarse cada mes.
+
+Crea un pago único o entre 2 y 120 cuotas mensuales de igual importe, indicando acreedor, concepto, importe por cuota (incluyendo los cargos acordados) y primer vencimiento. Cada cuota se puede editar o eliminar mientras esté pendiente. El disponible tras compromisos resta los pagos pendientes hasta el final del ciclo, incluidos los vencidos anteriores. Las cuotas posteriores se muestran por separado.
+
+**Registrar pago** crea un único gasto vinculado, con fecha real no futura. Los envíos repetidos del mismo pago no duplican el gasto. **Anular pago** devuelve la cuota a pendiente y elimina ese gasto, permitiendo corregirla. Los gastos vinculados se gestionan desde Mi ciclo; en Movimientos no pueden editarse, duplicarse ni eliminarse por separado. Los estados de ciclos anteriores se calculan al corte de ese ciclo.
+
+Las nuevas tablas y columnas se crean al reiniciar mediante la actualización del esquema; los movimientos y usuarios existentes se conservan. Cada usuario solo accede a su configuración y pagos, con el permiso de Finanzas.
+
+## Arquitectura de código
 Controller -> Service -> Repository -> Database
 View: Thymeleaf + Bootstrap

@@ -25,6 +25,19 @@ public class AppUser {
     private Instant temporaryPasswordExpiresAt;
     @Column(columnDefinition = "bigint default 0")
     private Long credentialVersion = 0L;
+    private Integer payday;
+    @Column(precision = 19, scale = 2)
+    private java.math.BigDecimal financeOpeningBalance;
+    private java.time.LocalDate financeOpeningDate;
+
+    public int getPayday() { return payday == null ? 28 : payday; }
+    public void setPayday(int value) { payday = value; }
+    public java.math.BigDecimal getFinanceOpeningBalance() {
+        return financeOpeningBalance == null ? java.math.BigDecimal.ZERO : financeOpeningBalance;
+    }
+    public void setFinanceOpeningBalance(java.math.BigDecimal value) { financeOpeningBalance = value; }
+    public java.time.LocalDate getFinanceOpeningDate() { return financeOpeningDate; }
+    public void setFinanceOpeningDate(java.time.LocalDate value) { financeOpeningDate = value; }
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "user_page_permissions", joinColumns = @JoinColumn(name = "user_id"))
     @Enumerated(EnumType.STRING)

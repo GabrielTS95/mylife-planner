@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="fields" class="row g-3">
+  <div class="col-12" th:if="${#fields.hasAnyErrors()}">
+    <div class="alert alert-danger mb-0" role="alert">
+      <p class="mb-1 fw-bold">Revisa los datos del pago.</p>
+      <ul class="mb-0"><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <label for="paymentDescription" class="form-label">Concepto</label>
+    <input id="paymentDescription" th:field="*{description}" class="form-control" maxlength="120" required placeholder="Ej. Préstamo personal">
+  </div>
+  <div class="col-md-6">
+    <label for="paymentCreditor" class="form-label">¿A quién le pagas?</label>
+    <input id="paymentCreditor" th:field="*{creditor}" class="form-control" maxlength="120" required placeholder="Ej. BCP, alquiler, familiar">
+  </div>
+  <div class="col-md-6">
+    <label for="paymentAmount" class="form-label">Importe de esta cuota (S/)</label>
+    <input id="paymentAmount" th:field="*{amount}" type="number" class="form-control" min="0.01" max="999999999999.99" step="0.01" required>
+  </div>
+  <div class="col-md-6">
+    <label for="paymentDueDate" class="form-label">Vencimiento</label>
+    <input id="paymentDueDate" th:field="*{dueDate}" type="date" class="form-control" required>
+  </div>
+</div>
+</body>
+</html>

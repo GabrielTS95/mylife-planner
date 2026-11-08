@@ -26,8 +26,11 @@ public class FinanceService {
     private final FinanceTransactionRepository repository;
 
     private final AccountService account;
+    private final com.mylifeplanner.repository.ScheduledPaymentRepository payments;
 
-    public FinanceService(FinanceTransactionRepository repository, AccountService account) {
+    public FinanceService(FinanceTransactionRepository repository, AccountService account,
+                          com.mylifeplanner.repository.ScheduledPaymentRepository payments) {
+        this.payments = payments;
         this.account = account;
         this.repository = repository;
     }
@@ -111,7 +114,7 @@ public class FinanceService {
 
     public FinanceTransaction save(FinanceTransaction tx) {
         account.requireAccess(AppPage.FINANCES);
-        if (tx.getId() != null) findById(tx.getId());
+        if (tx.getId() != null) requireManualMovement(tx.getId());
         tx.setUser(account.currentUser());
         if (tx.getCategory() != null && "Bancos".equalsIgnoreCase(tx.getCategory().strip())) {
             if (!FinanceTransaction.BANKS.contains(tx.getBank() == null ? "" : tx.getBank())) {
@@ -137,6 +140,7 @@ public class FinanceService {
                     org.springframework.http.HttpStatus.BAD_REQUEST, "Selecciona un periodo de copia");
         }
         FinanceTransaction original = findById(id);
+        requireManualMovement(id);
         if ("NEXT_MONTH".equals(scope) && isDuplicatedToNextMonth(original)) {
             return 0;
         }
@@ -168,7 +172,23 @@ public class FinanceService {
     }
 
     public void delete(Long id) {
+        requireManualMovement(id);
         repository.delete(findById(id));
+    }
+
+    public void requireManualMovement(Long id) {
+        findById(id);
+        if (payments.existsByTransactionIdAndUserId(id, account.currentUser().getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Este gasto pertenece a una cuota. Gestiona o anula el pago desde Mi ciclo.");
+        }
+    }
+
+    public Set<Long> linkedPaymentTransactionIds() {
+        account.requireAccess(AppPage.FINANCES);
+        return payments.findAllByUserId(account.currentUser().getId()).stream()
+                .filter(com.mylifeplanner.model.ScheduledPayment::isPaid)
+                .map(p -> p.getTransaction().getId()).collect(java.util.stream.Collectors.toSet());
     }
 
     public FinanceTransaction findById(Long id) {
