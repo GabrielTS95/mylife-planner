@@ -40,6 +40,13 @@ class FinanceActionsTests {
     @Autowired
     private FinanceTransactionRepository repository;
 
+    private FinanceService finance() {
+        // MVC requests clear the thread's security context; direct service calls need the test user too.
+        org.springframework.security.core.context.SecurityContextHolder.setContext(
+                org.springframework.security.test.context.TestSecurityContextHolder.getContext());
+        return financeService;
+    }
+
     private FinanceTransaction movement() {
         FinanceTransaction tx = new FinanceTransaction();
         tx.setAmount(new BigDecimal("40.00"));
@@ -47,7 +54,7 @@ class FinanceActionsTests {
         tx.setCategory("Servicios");
         tx.setTransactionDate(LocalDate.now());
         tx.setType(TransactionType.GASTO);
-        return financeService.save(tx);
+        return finance().save(tx);
     }
 
     @Test
@@ -192,8 +199,8 @@ class FinanceActionsTests {
                 .filter(t -> "No payment date test".equals(t.getDescription())).findFirst().orElseThrow();
         assertThat(tx.getTransactionDate()).isNull();
         assertThat(tx.getRegistrationDate()).isEqualTo(LocalDate.now());
-        assertThat(financeService.findByMonth(java.time.YearMonth.of(2027, 6))).contains(tx);
-        assertThat(financeService.totalByTypeForMonth(TransactionType.GASTO, java.time.YearMonth.of(2027, 6)))
+        assertThat(finance().findByMonth(java.time.YearMonth.of(2027, 6))).contains(tx);
+        assertThat(finance().totalByTypeForMonth(TransactionType.GASTO, java.time.YearMonth.of(2027, 6)))
                 .isEqualByComparingTo("34");
         mvc.perform(post("/finances/{id}/edit", tx.getId()).with(csrf()).param("amount", "34")
                         .param("category", "Otros").param("transactionDate", "2027-06-28"))
@@ -214,7 +221,7 @@ class FinanceActionsTests {
         tx.setType(TransactionType.INGRESO);
         tx.setCategory("Bancos");
         tx.setBank("BBVA");
-        financeService.save(tx);
+        finance().save(tx);
         mvc.perform(post("/finances/{id}/duplicate", tx.getId()).with(csrf()).param("scope", "REST_OF_YEAR"))
                 .andExpect(status().is3xxRedirection()).andExpect(flash().attributeExists("actionSuccess"));
         var copies = repository.findAll().stream().filter(t -> tx.getId().equals(t.getDuplicateSourceId())).toList();
@@ -225,8 +232,8 @@ class FinanceActionsTests {
         assertThat(february.getBank()).isEqualTo("BBVA");
         assertThat(february.getType()).isEqualTo(TransactionType.INGRESO);
         assertThat(february.getRegistrationDate()).isEqualTo(LocalDate.now());
-        assertThat(financeService.duplicate(tx.getId(), "REST_OF_YEAR")).isZero();
-        assertThat(financeService.duplicate(tx.getId(), "NEXT_MONTH")).isZero();
+        assertThat(finance().duplicate(tx.getId(), "REST_OF_YEAR")).isZero();
+        assertThat(finance().duplicate(tx.getId(), "NEXT_MONTH")).isZero();
         assertThat(tx.getTransactionDate()).isEqualTo(LocalDate.of(2028, 1, 31));
     }
 
@@ -235,14 +242,14 @@ class FinanceActionsTests {
         FinanceTransaction tx = movement();
         tx.setTransactionDate(null);
         tx.setAccountingMonth(LocalDate.of(2027, 12, 1));
-        financeService.save(tx);
-        assertThat(financeService.duplicate(tx.getId(), "REST_OF_YEAR")).isZero();
-        assertThat(financeService.duplicate(tx.getId(), "NEXT_MONTH")).isEqualTo(1);
+        finance().save(tx);
+        assertThat(finance().duplicate(tx.getId(), "REST_OF_YEAR")).isZero();
+        assertThat(finance().duplicate(tx.getId(), "NEXT_MONTH")).isEqualTo(1);
         FinanceTransaction copy = repository.findAll().stream()
                 .filter(t -> tx.getId().equals(t.getDuplicateSourceId())).findFirst().orElseThrow();
         assertThat(copy.getTransactionDate()).isNull();
         assertThat(copy.getMovementMonth()).isEqualTo("2028-01");
-        assertThat(financeService.findByMonth(java.time.YearMonth.of(2028, 1))).contains(copy);
+        assertThat(finance().findByMonth(java.time.YearMonth.of(2028, 1))).contains(copy);
     }
 
     @Test
@@ -261,9 +268,9 @@ class FinanceActionsTests {
         FinanceTransaction txOct = movement();
         txOct.setTransactionDate(LocalDate.of(2026, 10, 10));
         txOct.setDescription("Suscripcion Gym Octubre");
-        financeService.save(txOct);
+        finance().save(txOct);
 
-        assertThat(financeService.isDuplicatedToNextMonth(txOct)).isFalse();
+        assertThat(finance().isDuplicatedToNextMonth(txOct)).isFalse();
 
         // Duplicar a Noviembre
         mvc.perform(post("/finances/{id}/duplicate", txOct.getId()).with(csrf()).param("scope", "NEXT_MONTH"))
@@ -274,12 +281,12 @@ class FinanceActionsTests {
                 .findFirst().orElseThrow();
 
         // Octubre ya fue duplicado a Noviembre -> deshabilitado
-        assertThat(financeService.isDuplicatedToNextMonth(txOct)).isTrue();
+        assertThat(finance().isDuplicatedToNextMonth(txOct)).isTrue();
         // Noviembre NO ha sido duplicado a Diciembre -> habilitado
-        assertThat(financeService.isDuplicatedToNextMonth(txNov)).isFalse();
+        assertThat(finance().isDuplicatedToNextMonth(txNov)).isFalse();
 
         // Intentar duplicar de nuevo desde Octubre a Noviembre debe retornar 0 y no duplicar
-        assertThat(financeService.duplicate(txOct.getId(), "NEXT_MONTH")).isZero();
+        assertThat(finance().duplicate(txOct.getId(), "NEXT_MONTH")).isZero();
 
         // Verificar que en la vista de Octubre el botón de txOct está deshabilitado
         mvc.perform(get("/finances").param("month", "10").param("year", "2026"))
@@ -301,9 +308,9 @@ class FinanceActionsTests {
                 .findFirst().orElseThrow();
 
         // Ahora Noviembre también está deshabilitado porque ya está en Diciembre
-        assertThat(financeService.isDuplicatedToNextMonth(txNov)).isTrue();
+        assertThat(finance().isDuplicatedToNextMonth(txNov)).isTrue();
         // Diciembre está habilitado para Enero
-        assertThat(financeService.isDuplicatedToNextMonth(txDec)).isFalse();
+        assertThat(finance().isDuplicatedToNextMonth(txDec)).isFalse();
     }
 
     @Test
@@ -315,31 +322,31 @@ class FinanceActionsTests {
         t1.setDescription("Monto mediano");
         t1.setCategory("Otros");
         t1.setTransactionDate(testMonth.atDay(5));
-        financeService.save(t1);
+        finance().save(t1);
 
         FinanceTransaction t2 = new FinanceTransaction();
         t2.setAmount(new BigDecimal("25.00"));
         t2.setDescription("Monto chico");
         t2.setCategory("Otros");
         t2.setTransactionDate(testMonth.atDay(10));
-        financeService.save(t2);
+        finance().save(t2);
 
         FinanceTransaction t3 = new FinanceTransaction();
         t3.setAmount(new BigDecimal("900.00"));
         t3.setDescription("Monto grande");
         t3.setCategory("Otros");
         t3.setTransactionDate(testMonth.atDay(15));
-        financeService.save(t3);
+        finance().save(t3);
 
         // Mayor a menor (desc)
-        List<FinanceTransaction> descList = financeService.findByMonth(testMonth, "desc");
+        List<FinanceTransaction> descList = finance().findByMonth(testMonth, "desc");
         assertThat(descList).isNotEmpty();
         assertThat(descList.get(0).getAmount()).isEqualByComparingTo("900.00");
         assertThat(descList.get(1).getAmount()).isEqualByComparingTo("120.00");
         assertThat(descList.get(2).getAmount()).isEqualByComparingTo("25.00");
 
         // Menor a mayor (asc)
-        List<FinanceTransaction> ascList = financeService.findByMonth(testMonth, "asc");
+        List<FinanceTransaction> ascList = finance().findByMonth(testMonth, "asc");
         assertThat(ascList).isNotEmpty();
         assertThat(ascList.get(0).getAmount()).isEqualByComparingTo("25.00");
         assertThat(ascList.get(1).getAmount()).isEqualByComparingTo("120.00");
@@ -365,7 +372,7 @@ class FinanceActionsTests {
         tx.setCategory("Servicios");
         tx.setTransactionDate(null);
         tx.setAccountingMonth(LocalDate.of(2026, 3, 1));
-        financeService.save(tx);
+        finance().save(tx);
 
         mvc.perform(get("/finances").param("month", "3").param("year", "2026"))
                 .andExpect(status().isOk())

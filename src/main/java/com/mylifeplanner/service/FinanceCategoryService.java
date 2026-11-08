@@ -1,6 +1,7 @@
 package com.mylifeplanner.service;
 
 import com.mylifeplanner.model.FinanceCategory;
+import com.mylifeplanner.model.AppPage;
 import com.mylifeplanner.repository.FinanceCategoryRepository;
 import com.mylifeplanner.repository.FinanceTransactionRepository;
 import org.springframework.stereotype.Service;
@@ -21,10 +22,11 @@ public class FinanceCategoryService {
     }
 
     public List<String> findAll() {
+        account.requireAccess(AppPage.FINANCES);
         List<String> names = new ArrayList<>(List.of("Vivienda", "Alimentacion", "Transporte", "Salud / Gym",
                 "Estudios", "Ocio", "Ahorro", "Salario", "Negocio", "Otros"));
-        repository.findAll().forEach(category -> addName(names, category.getName()));
-        transactions.findAll().forEach(tx -> addName(names, tx.getCategory()));
+        repository.findAllByUserId(account.currentUser().getId()).forEach(category -> addName(names, category.getName()));
+        transactions.findAllByUserId(account.currentUser().getId()).forEach(tx -> addName(names, tx.getCategory()));
         return names;
     }
 
@@ -44,7 +46,7 @@ public class FinanceCategoryService {
         }
         FinanceCategory category = new FinanceCategory();
         category.setName(name);
-        category.setUser(account.getOwner());
+        category.setUser(account.currentUser());
         repository.save(category);
         return name;
     }

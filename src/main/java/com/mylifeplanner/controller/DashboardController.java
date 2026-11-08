@@ -2,6 +2,8 @@ package com.mylifeplanner.controller;
 
 import com.mylifeplanner.controller.support.ActivityCategoryView;
 import com.mylifeplanner.model.Activity;
+import com.mylifeplanner.model.AppPage;
+import com.mylifeplanner.service.AccountService;
 import com.mylifeplanner.model.FinanceTransaction;
 import com.mylifeplanner.model.Priority;
 import com.mylifeplanner.model.Task;
@@ -30,6 +32,7 @@ import java.util.Map;
 
 @Controller
 public class DashboardController {
+    private final AccountService accounts;
     private final TaskService taskService;
     private final ActivityService activityService;
     private final FinanceService financeService;
@@ -38,7 +41,8 @@ public class DashboardController {
 
     public DashboardController(TaskService taskService, ActivityService activityService,
                                FinanceService financeService, GoalService goalService,
-                               ActivityCategoryView activityCategoryView) {
+                               ActivityCategoryView activityCategoryView, AccountService accounts) {
+        this.accounts = accounts;
         this.taskService = taskService;
         this.activityService = activityService;
         this.financeService = financeService;
@@ -55,6 +59,7 @@ public class DashboardController {
             @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             Model model) {
 
+        if (!accounts.canAccess(AppPage.HOME)) return "redirect:" + accounts.landingPage(accounts.currentUser());
         LocalDate today = LocalDate.now();
         Locale esLocale = Locale.forLanguageTag("es-PE");
         DateTimeFormatter shortDateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy", esLocale);

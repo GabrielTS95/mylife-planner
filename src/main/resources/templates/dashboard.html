@@ -2,6 +2,7 @@
 <html lang="es" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8">
+  <script th:src="@{/js/theme.js}"></script>
   <meta name="csrf-token" th:content="${_csrf.token}">
   <meta name="csrf-header" th:content="${_csrf.headerName}">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -29,7 +30,7 @@
         </span>
       </div>
       <h1><i class="bi bi-house-door-fill text-primary"></i> Home</h1>
-      <p>Vista integral organizada en Finanzas, Tareas y Actividades de la semana.</p>
+      <p>Tu resumen personal de las secciones habilitadas.</p>
     </div>
     <div class="home-topbar-actions">
       <div class="date-pill-chip">
@@ -40,10 +41,11 @@
   </header>
 
 
+  <p th:if="${!access.FINANCES and !access.TASKS and !access.ACTIVITIES}" class="card-panel">Bienvenido. Usa el menú para acceder a tus pestañas habilitadas.</p>
   <!-- ========================================================
        SECCIÓN 1: FINANZAS
        ======================================================== -->
-  <section class="home-section" id="section-finances">
+  <section th:if="${access.FINANCES}" class="home-section" id="section-finances">
     <div class="section-header-banner">
       <div class="section-header-content">
         <div class="section-icon-badge badge-finances">
@@ -62,7 +64,7 @@
           <i class="bi bi-receipt"></i>
           <span>Movimientos</span>
         </a>
-        <a href="/goals" class="section-action-btn">
+        <a th:if="${access.GOALS}" href="/goals" class="section-action-btn">
           <i class="bi bi-bullseye"></i>
           <span>Metas</span>
         </a>
@@ -182,7 +184,7 @@
   <!-- ========================================================
        SECCIÓN 2: TAREAS
        ======================================================== -->
-  <section class="home-section" id="section-tasks">
+  <section th:if="${access.TASKS}" class="home-section" id="section-tasks">
     <div class="section-header-banner">
       <div class="section-header-content">
         <div class="section-icon-badge badge-tasks">
@@ -333,7 +335,7 @@
   <!-- ========================================================
        SECCIÓN 3: ACTIVIDADES DE LA SEMANA
        ======================================================== -->
-  <section class="home-section" id="section-activities">
+  <section th:if="${access.ACTIVITIES}" class="home-section" id="section-activities">
     <div class="section-header-banner">
       <div class="section-header-content">
         <div class="section-icon-badge badge-activities">

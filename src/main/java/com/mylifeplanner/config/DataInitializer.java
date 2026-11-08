@@ -23,6 +23,11 @@ public class DataInitializer {
                 user.setPasswordHash("$2a$12$fZFjQ1FbeIte5VQ7P01CiuG05cyltCTAMLhOU9XiRSOeL4FmcQYPK");
                 return users.save(user);
             });
+            // The original account remains the administrator; its password and records are preserved.
+            if (!owner.isAdministrator()) {
+                owner.setAdministrator(true);
+                users.save(owner);
+            }
             for (String table : java.util.List.of("tasks", "activities", "goals", "finance_transactions", "finance_categories")) {
                 jdbcTemplate.update("UPDATE " + table + " SET user_id = ? WHERE user_id IS NULL", owner.getId());
                 jdbcTemplate.execute("ALTER TABLE " + table + " ALTER COLUMN user_id SET NOT NULL");
@@ -30,6 +35,7 @@ public class DataInitializer {
             jdbcTemplate.update("UPDATE finance_transactions SET registration_date = COALESCE(transaction_date, accounting_month, CURRENT_DATE) WHERE registration_date IS NULL");
             migrateLegacyTaskStatuses(jdbcTemplate);
             migrateFinanceTransactionTypes(jdbcTemplate);
+            migrateCategoryOwnership(jdbcTemplate);
 
             if (tasks.count() == 0) {
                 Task t = new Task(); t.setTitle("Revisar pendientes de la semana"); t.setDescription("Ordenar actividades importantes"); t.setDueDate(LocalDate.now().plusDays(1)); t.setPriority(Priority.ALTA); t.setUser(owner); tasks.save(t);
@@ -46,6 +52,23 @@ public class DataInitializer {
                 Goal g = new Goal(); g.setName("Fondo de ahorro"); g.setTargetAmount(new BigDecimal("10000")); g.setCurrentAmount(new BigDecimal("3500")); g.setUser(owner); goals.save(g);
             }
         };
+    }
+
+    private void migrateCategoryOwnership(JdbcTemplate jdbcTemplate) {
+        // Older databases required globally unique category names. Users may now share a name.
+        var legacyConstraints = jdbcTemplate.queryForList("""
+                SELECT tc.CONSTRAINT_NAME
+                  FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+                  JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kc
+                    ON kc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME AND kc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
+                 WHERE tc.TABLE_SCHEMA = CURRENT_SCHEMA AND tc.TABLE_NAME = 'FINANCE_CATEGORIES'
+                   AND tc.CONSTRAINT_TYPE = 'UNIQUE'
+                 GROUP BY tc.CONSTRAINT_NAME
+                HAVING COUNT(*) = 1 AND MAX(kc.COLUMN_NAME) = 'NAME'
+                """, String.class);
+        for (String constraint : legacyConstraints) {
+            jdbcTemplate.execute("ALTER TABLE finance_categories DROP CONSTRAINT \"" + constraint.replace("\"", "\"\"") + "\"");
+        }
     }
 
     private void migrateFinanceTransactionTypes(JdbcTemplate jdbcTemplate) {

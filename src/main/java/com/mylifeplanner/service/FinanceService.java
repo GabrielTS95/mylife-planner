@@ -4,6 +4,9 @@ import com.mylifeplanner.model.FinanceTransaction;
 import com.mylifeplanner.model.TransactionType;
 import com.mylifeplanner.repository.FinanceTransactionRepository;
 import org.springframework.stereotype.Service;
+import com.mylifeplanner.model.AppPage;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -30,7 +33,8 @@ public class FinanceService {
     }
 
     public List<FinanceTransaction> findAll() {
-        return repository.findAll().stream()
+        if (!account.canAccess(AppPage.FINANCES)) return List.of();
+        return repository.findAllByUserId(account.currentUser().getId()).stream()
                 .sorted(Comparator
                         .comparing(FinanceTransaction::getTransactionDate, Comparator.nullsLast(Comparator.reverseOrder()))
                         .thenComparing(FinanceTransaction::getId, Comparator.nullsLast(Comparator.reverseOrder())))
@@ -63,7 +67,7 @@ public class FinanceService {
         if (tx == null || tx.getId() == null) return false;
         Long rootId = tx.getDuplicateSourceId() != null ? tx.getDuplicateSourceId() : tx.getId();
         YearMonth nextMonth = YearMonth.parse(tx.getMovementMonth()).plusMonths(1);
-        return repository.findAll().stream()
+        return findAll().stream()
                 .anyMatch(other -> !other.getId().equals(tx.getId())
                         && rootId.equals(other.getDuplicateSourceId() != null ? other.getDuplicateSourceId() : other.getId())
                         && nextMonth.toString().equals(other.getMovementMonth()));
@@ -73,7 +77,7 @@ public class FinanceService {
         if (transactions == null || transactions.isEmpty()) {
             return Collections.emptySet();
         }
-        List<FinanceTransaction> all = repository.findAll();
+        List<FinanceTransaction> all = findAll();
         Set<Long> result = new HashSet<>();
         for (FinanceTransaction tx : transactions) {
             if (tx.getId() == null) continue;
@@ -106,7 +110,9 @@ public class FinanceService {
     }
 
     public FinanceTransaction save(FinanceTransaction tx) {
-        tx.setUser(account.getOwner());
+        account.requireAccess(AppPage.FINANCES);
+        if (tx.getId() != null) findById(tx.getId());
+        tx.setUser(account.currentUser());
         if (tx.getCategory() != null && "Bancos".equalsIgnoreCase(tx.getCategory().strip())) {
             if (!FinanceTransaction.BANKS.contains(tx.getBank() == null ? "" : tx.getBank())) {
                 throw new org.springframework.web.server.ResponseStatusException(
@@ -137,7 +143,7 @@ public class FinanceService {
         YearMonth sourceMonth = YearMonth.parse(original.getMovementMonth());
         int count = "NEXT_MONTH".equals(scope) ? 1 : 12 - sourceMonth.getMonthValue();
         Long rootId = original.getDuplicateSourceId() == null ? original.getId() : original.getDuplicateSourceId();
-        var existingMonths = repository.findAll().stream()
+        var existingMonths = findAll().stream()
                 .filter(tx -> rootId.equals(tx.getId()) || rootId.equals(tx.getDuplicateSourceId()))
                 .map(FinanceTransaction::getMovementMonth).collect(java.util.stream.Collectors.toSet());
         int created = 0;
@@ -162,17 +168,18 @@ public class FinanceService {
     }
 
     public void delete(Long id) {
-        repository.deleteById(id);
+        repository.delete(findById(id));
     }
 
     public FinanceTransaction findById(Long id) {
-        return repository.findById(id).orElseThrow(() ->
+        account.requireAccess(AppPage.FINANCES);
+        return repository.findByIdAndUserId(id, account.currentUser().getId()).orElseThrow(() ->
                 new org.springframework.web.server.ResponseStatusException(
                         org.springframework.http.HttpStatus.NOT_FOUND, "Movimiento no encontrado"));
     }
 
     public BigDecimal totalByType(TransactionType type) {
-        return totalByType(repository.findAll(), type);
+        return totalByType(findAll(), type);
     }
 
     public BigDecimal totalByTypeForMonth(TransactionType type, YearMonth month) {
@@ -184,7 +191,7 @@ public class FinanceService {
     }
 
     public BigDecimal totalByTypeOnDate(TransactionType type, LocalDate date) {
-        return totalByType(repository.findAll().stream()
+        return totalByType(findAll().stream()
                 .filter(transaction -> date.equals(transaction.getTransactionDate()))
                 .toList(), type);
     }

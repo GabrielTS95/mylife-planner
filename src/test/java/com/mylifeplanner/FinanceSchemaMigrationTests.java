@@ -27,6 +27,8 @@ class FinanceSchemaMigrationTests {
     @Autowired private MockMvc mvc;
     @Autowired private FinanceTransactionRepository repository;
     @Autowired private CommandLineRunner seed;
+    @Autowired private com.mylifeplanner.repository.AppUserRepository users;
+    @Autowired private com.mylifeplanner.repository.FinanceCategoryRepository categories;
 
     @Test
     void legacyDatabaseAcceptsSavingsAndPreservesMovementsAcrossRepeatedInitialization() throws Exception {
@@ -56,5 +58,15 @@ class FinanceSchemaMigrationTests {
         assertThat(saving.getAmount()).isEqualByComparingTo("300.00");
         assertThat(saving.getDescription()).isEqualTo("Ahorro tras migracion");
         assertThat(saving.getCategory()).isEqualTo("Ahorro");
+        assertThat(users.findByUsername("erwintorr").orElseThrow().isAdministrator()).isTrue();
+        var secondUser = new com.mylifeplanner.model.AppUser();
+        secondUser.setUsername("migration.member");
+        secondUser.setPasswordHash("test-only-unused-hash");
+        users.saveAndFlush(secondUser);
+        var sharedName = new com.mylifeplanner.model.FinanceCategory();
+        sharedName.setUser(secondUser);
+        sharedName.setName("Legacy category");
+        categories.saveAndFlush(sharedName);
+        assertThat(categories.count()).isEqualTo(2);
     }
 }

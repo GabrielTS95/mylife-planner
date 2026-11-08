@@ -11,7 +11,7 @@
       <button type="button" class="btn-sidebar-toggle" id="sidebarToggleBtn" aria-label="Alternar menú lateral">
         <i class="bi bi-list"></i>
       </button>
-      <a class="topbar-brand" th:href="@{/}">
+      <a class="topbar-brand" th:href="@{${landingPath}}">
         <span class="brand-mark-sm"><i class="bi bi-compass-fill"></i></span>
         <span class="brand-text">MyLife <span class="brand-highlight">Planner</span></span>
       </a>
@@ -35,12 +35,12 @@
       <div class="dropdown user-profile-dropdown">
         <button class="user-avatar-btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
           <div class="avatar-circle">
-            <span>E</span>
+            <span th:text="${#strings.isEmpty(signedInUsername) ? '?' : #strings.toUpperCase(#strings.substring(signedInUsername, 0, 1))}">U</span>
             <span class="status-indicator"></span>
           </div>
           <div class="user-meta d-none d-lg-block text-start">
             <strong class="user-name" th:text="${signedInUsername}">erwintorr</strong>
-            <small class="user-role">Planificador</small>
+            <small class="user-role" th:text="${isAdministrator} ? 'Administrador' : 'Usuario'">Usuario</small>
           </div>
         </button>
         <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 profile-menu">
@@ -49,12 +49,14 @@
             <small class="d-block text-muted">Cuenta personal</small>
           </li>
           <li><hr class="dropdown-divider"></li>
-          <li><a class="dropdown-item" th:href="@{/}"><i class="bi bi-house-door me-2"></i>Home</a></li>
-          <li><a class="dropdown-item" th:href="@{/finances}"><i class="bi bi-receipt me-2"></i>Movimientos</a></li>
-          <li><a class="dropdown-item" th:href="@{/goals}"><i class="bi bi-bullseye me-2"></i>Metas</a></li>
-          <li><a class="dropdown-item" th:href="@{/tasks}"><i class="bi bi-kanban me-2"></i>Tareas</a></li>
-          <li><a class="dropdown-item" th:href="@{/activities}"><i class="bi bi-calendar-week me-2"></i>Mi semana</a></li>
+          <li><a th:if="${access.HOME}" class="dropdown-item" th:href="@{/}"><i class="bi bi-house-door me-2"></i>Home</a></li>
+          <li><a th:if="${access.FINANCES}" class="dropdown-item" th:href="@{/finances}"><i class="bi bi-receipt me-2"></i>Movimientos</a></li>
+          <li><a th:if="${access.GOALS}" class="dropdown-item" th:href="@{/goals}"><i class="bi bi-bullseye me-2"></i>Metas</a></li>
+          <li><a th:if="${access.TASKS}" class="dropdown-item" th:href="@{/tasks}"><i class="bi bi-kanban me-2"></i>Tareas</a></li>
+          <li><a th:if="${access.ACTIVITIES}" class="dropdown-item" th:href="@{/activities}"><i class="bi bi-calendar-week me-2"></i>Mi semana</a></li>
           <li><hr class="dropdown-divider"></li>
+          <li th:if="${isAdministrator}"><a class="dropdown-item" th:href="@{/settings}"><i class="bi bi-gear me-2"></i>Ajustes</a></li>
+          <li><a class="dropdown-item" th:href="@{/account/password}"><i class="bi bi-key me-2"></i>Cambiar contraseña</a></li>
           <li><form method="post" th:action="@{/logout}" data-confirm-action="logout">
             <button class="dropdown-item text-danger" type="submit"><i class="bi bi-box-arrow-right me-2"></i>Cerrar sesión</button>
           </form></li>
@@ -69,7 +71,7 @@
   <!-- SIDEBAR LATERAL (COLAPSABLE / DESPLEGABLE) -->
   <aside class="app-sidebar" id="appSidebar">
     <div class="sidebar-header-row">
-      <a class="sidebar-brand" th:href="@{/}">
+      <a class="sidebar-brand" th:href="@{${landingPath}}">
         <span class="brand-mark"><i class="bi bi-compass-fill"></i></span>
         <div class="brand-info">
           <strong>MyLife</strong>
@@ -84,15 +86,15 @@
     <!-- NAVEGACION PRINCIPAL -->
     <nav class="sidebar-nav" aria-label="Navegación principal">
       <!-- 1. HOME -->
-      <a th:href="@{/}" class="sidebar-nav-item" th:classappend="${activePage == 'home'} ? 'active' : ''">
+      <a th:if="${access.HOME}" th:href="@{/}" class="sidebar-nav-item" th:classappend="${activePage == 'home'} ? 'active' : ''">
         <i class="bi bi-house-door-fill"></i>
         <span>Home</span>
       </a>
 
       <!-- 2. FINANZAS (DESPLEGABLE: MOVIMIENTOS Y METAS) -->
-      <div class="sidebar-menu-group menu-open" id="financesGroup">
+      <div th:if="${access.FINANCES or access.GOALS}" class="sidebar-menu-group menu-open" id="financesGroup">
         <div class="sidebar-parent-wrap">
-          <a th:href="@{/finances}" class="sidebar-nav-item sidebar-parent-link"
+          <a th:href="${access.FINANCES} ? @{/finances} : @{/goals}" class="sidebar-nav-item sidebar-parent-link"
              th:classappend="${activePage == 'finances' or activePage == 'goals'} ? 'active' : ''">
             <div class="nav-item-left">
               <i class="bi bi-wallet2"></i>
@@ -104,11 +106,11 @@
           </button>
         </div>
         <div class="sidebar-submenu" id="financesSubmenu">
-          <a th:href="@{/finances}" class="submenu-item" th:classappend="${activePage == 'finances'} ? 'active' : ''">
+          <a th:if="${access.FINANCES}" th:href="@{/finances}" class="submenu-item" th:classappend="${activePage == 'finances'} ? 'active' : ''">
             <i class="bi bi-receipt"></i>
             <span>Movimientos</span>
           </a>
-          <a th:href="@{/goals}" class="submenu-item" th:classappend="${activePage == 'goals'} ? 'active' : ''">
+          <a th:if="${access.GOALS}" th:href="@{/goals}" class="submenu-item" th:classappend="${activePage == 'goals'} ? 'active' : ''">
             <i class="bi bi-bullseye"></i>
             <span>Metas</span>
           </a>
@@ -116,24 +118,27 @@
       </div>
 
       <!-- 3. TAREAS -->
-      <a th:href="@{/tasks}" class="sidebar-nav-item" th:classappend="${activePage == 'tasks'} ? 'active' : ''">
+      <a th:if="${access.TASKS}" th:href="@{/tasks}" class="sidebar-nav-item" th:classappend="${activePage == 'tasks'} ? 'active' : ''">
         <i class="bi bi-kanban-fill"></i>
         <span>Tareas</span>
       </a>
 
       <!-- 4. MI SEMANA -->
-      <a th:href="@{/activities}" class="sidebar-nav-item" th:classappend="${activePage == 'activities'} ? 'active' : ''">
+      <a th:if="${access.ACTIVITIES}" th:href="@{/activities}" class="sidebar-nav-item" th:classappend="${activePage == 'activities'} ? 'active' : ''">
         <i class="bi bi-calendar-week-fill"></i>
         <span>Mi semana</span>
+      </a>
+      <a th:if="${isAdministrator}" th:href="@{/settings}" class="sidebar-nav-item" th:classappend="${activePage == 'settings'} ? 'active' : ''">
+        <i class="bi bi-gear-fill"></i><span>Ajustes</span>
       </a>
     </nav>
 
     <!-- ACCIONES DIRECTAS EN EL FOOTER DEL SIDEBAR -->
     <div class="sidebar-actions">
       <span class="sidebar-section-title">Accesos Rápidos</span>
-      <a th:href="@{/tasks}" class="btn btn-sidebar-action"><i class="bi bi-plus-circle text-warning"></i>Nueva Tarea</a>
-      <a th:href="@{/finances}" class="btn btn-sidebar-action"><i class="bi bi-plus-circle text-success"></i>Nuevo Movimiento</a>
-      <a th:href="@{/goals}" class="btn btn-sidebar-action"><i class="bi bi-plus-circle text-primary"></i>Nueva Meta</a>
+      <a th:if="${access.TASKS}" th:href="@{/tasks}" class="btn btn-sidebar-action"><i class="bi bi-plus-circle text-warning"></i>Nueva Tarea</a>
+      <a th:if="${access.FINANCES}" th:href="@{/finances}" class="btn btn-sidebar-action"><i class="bi bi-plus-circle text-success"></i>Nuevo Movimiento</a>
+      <a th:if="${access.GOALS}" th:href="@{/goals}" class="btn btn-sidebar-action"><i class="bi bi-plus-circle text-primary"></i>Nueva Meta</a>
     </div>
   </aside>
 
@@ -141,8 +146,9 @@
   <script>
     (function() {
       // 1. GESTION DEL TEMA (LIGHT / DARK MODO NOCHE)
-      const themeKey = 'mylife-planner-theme';
-      const storedTheme = localStorage.getItem(themeKey) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      const themeKey = 'mylife-planner-theme-v2';
+      let storedTheme = 'light';
+      try { storedTheme = localStorage.getItem(themeKey) === 'dark' ? 'dark' : 'light'; } catch (ignored) {}
       
       function applyTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
@@ -157,14 +163,14 @@
       applyTheme(storedTheme);
 
       window.addEventListener('DOMContentLoaded', () => {
-        applyTheme(localStorage.getItem(themeKey) || storedTheme);
+        applyTheme(storedTheme);
 
         const themeBtn = document.getElementById('themeToggleBtn');
         if (themeBtn) {
           themeBtn.addEventListener('click', () => {
             const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
             const nextTheme = (currentTheme === 'dark') ? 'light' : 'dark';
-            localStorage.setItem(themeKey, nextTheme);
+            try { localStorage.setItem(themeKey, nextTheme); } catch (ignored) {}
             applyTheme(nextTheme);
           });
         }

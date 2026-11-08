@@ -27,8 +27,12 @@ La consola H2 está desactivada. El acceso a las páginas requiere iniciar sesi�
 - `app_users` contiene el identificador, el usuario único y el hash de la contraseña.
 - `tasks`, `activities`, `goals`, `finance_transactions` y `finance_categories` tienen una clave foránea `user_id` obligatoria hacia `app_users`.
 - Al iniciar, los registros anteriores sin propietario se vinculan a la cuenta personal. La inicialización no sobrescribe una cuenta existente ni su contraseña.
-- La aplicación es de una sola cuenta; no incluye registro público de usuarios.
+- La cuenta inicial administra **Ajustes**. Desde allí crea usuarios, asigna acceso a Home, Movimientos, Metas, Tareas y Mi semana, y activa o desactiva cuentas. No hay registro público.
+- Cada usuario tiene sus propios datos. Los permisos se verifican tanto en el menú como en las rutas del servidor, y se aplican a las sesiones existentes.
+- Al crear un usuario o restablecer su acceso se genera una contraseña temporal aleatoria, visible una sola vez, válida durante 24 horas. Se exige cambiarla al ingresar; solo se guarda su hash BCrypt.
+- Desactivar un usuario o cambiar/restablecer su contraseña invalida sus sesiones anteriores. La cuenta administradora no puede desactivarse desde Ajustes.
 - Los formularios y el cierre de sesión usan POST y protección CSRF. La sesión caduca tras 30 minutos de inactividad.
+- El tema inicial es claro, independientemente del tema del dispositivo. El botón de tema permite elegir explícitamente modo oscuro para ese navegador.
 
 ## Módulos incluidos
 - Dashboard
@@ -36,6 +40,7 @@ La consola H2 está desactivada. El acceso a las páginas requiere iniciar sesi�
 - Tareas y prioridades
 - Finanzas: ingresos, gastos y balance
 - Metas financieras
+- Ajustes y administración de usuarios
 
 ## Arquitectura
 Controller -> Service -> Repository -> Database

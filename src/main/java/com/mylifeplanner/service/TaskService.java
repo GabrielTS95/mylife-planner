@@ -4,6 +4,9 @@ import com.mylifeplanner.model.Task;
 import com.mylifeplanner.model.TaskStatus;
 import com.mylifeplanner.repository.TaskRepository;
 import org.springframework.stereotype.Service;
+import com.mylifeplanner.model.AppPage;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -24,7 +27,8 @@ public class TaskService {
     }
 
     public List<Task> findAll() {
-        return repository.findAll().stream()
+        if (!account.canAccess(AppPage.TASKS)) return List.of();
+        return repository.findAllByUserId(account.currentUser().getId()).stream()
                 .sorted(taskComparator())
                 .toList();
     }
@@ -45,20 +49,24 @@ public class TaskService {
     }
 
     public Task save(Task task) {
-        task.setUser(account.getOwner());
+        account.requireAccess(AppPage.TASKS);
+        if (task.getId() != null) findById(task.getId());
+        task.setUser(account.currentUser());
         return repository.save(task);
     }
 
     public Task findById(Long id) {
-        return repository.findById(id).orElseThrow();
+        account.requireAccess(AppPage.TASKS);
+        return repository.findByIdAndUserId(id, account.currentUser().getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
     }
 
     public void delete(Long id) {
-        repository.deleteById(id);
+        repository.delete(findById(id));
     }
 
     public long count() {
-        return repository.count();
+        return findAll().size();
     }
 
     public Map<TaskStatus, List<Task>> findAllGroupedByStatus() {

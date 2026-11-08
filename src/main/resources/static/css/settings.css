@@ -1,0 +1,5 @@
+.permissions-grid { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; }
+.permission-option { display: inline-flex; align-items: center; gap: .5rem; cursor: pointer; }
+.credential-panel { border: 1px solid #86b7fe; }
+.credential-value { max-width: 26rem; font-family: ui-monospace, monospace; }
+.account-card { max-width: 38rem; margin: 0 auto; }
