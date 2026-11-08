@@ -67,18 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  const btnGoogle = document.getElementById('btnGoogle');
-  const btnApple = document.getElementById('btnApple');
-  const handleSocialClick = (provider) => {
-    showInfo(
-      `Acceso con ${provider}`,
-      'Integración en desarrollo',
-      `El inicio de sesión directo con ${provider} estará disponible próximamente. Por favor ingresa con tu usuario o correo y tu contraseña asignada.`
-    );
-  };
-  if (btnGoogle) btnGoogle.addEventListener('click', () => handleSocialClick('Google'));
-  if (btnApple) btnApple.addEventListener('click', () => handleSocialClick('Apple ID'));
-
   // =========================================================================
   // 3. Three.js: Figuras en 3D en Tiempo Real con Movimiento Continuo
   // =========================================================================

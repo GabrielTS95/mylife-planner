@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<body>
+<footer th:fragment="footer" class="app-footer">
+  <span class="app-footer-brand">MyLife Planner <span th:text="|© ${#temporals.year(#temporals.createToday())}|">© 2026</span></span>
+  <p class="app-footer-credit">Creado por <strong>Erwin Gabriel Torres Sangama</strong></p>
+</footer>
+</body>
+</html>

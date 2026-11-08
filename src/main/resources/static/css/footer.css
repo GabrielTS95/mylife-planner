@@ -1,0 +1,59 @@
+body.dashboard-shell,
+body.login-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+body.dashboard-shell > .dashboard-main,
+body.login-body > .login-layout {
+  flex: 1 0 auto;
+}
+
+body.login-body > .login-layout {
+  min-height: 0;
+}
+
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  gap: 8px 24px;
+  padding: 18px clamp(20px, 3vw, 40px);
+  border-top: 1px solid var(--line, #e2e8f0);
+  background: var(--card-bg, #ffffff);
+  color: var(--muted, #64748b);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.app-footer-brand {
+  font-weight: 600;
+}
+
+.app-footer-brand span {
+  margin-left: 4px;
+  font-weight: 400;
+}
+
+.app-footer-credit {
+  margin: 0;
+}
+
+.app-footer-credit strong {
+  color: var(--ink, #134e4a);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .app-footer {
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    text-align: center;
+    padding: 16px 20px;
+  }
+}
