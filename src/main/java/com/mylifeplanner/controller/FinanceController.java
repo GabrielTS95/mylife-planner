@@ -4,6 +4,7 @@ import com.mylifeplanner.model.FinanceTransaction;
 import com.mylifeplanner.model.FundingSource;
 import com.mylifeplanner.model.TransactionType;
 import com.mylifeplanner.service.FinanceCategoryService;
+import com.mylifeplanner.service.FinanceCycleService;
 import com.mylifeplanner.service.FinanceService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -21,24 +22,36 @@ import java.util.*;
 @RequestMapping("/finances")
 public class FinanceController {
 
+    private static final int TRANSACTIONS_PER_PAGE = 10;
+
     private final FinanceService service;
     private final FinanceCategoryService categories;
+    private final FinanceCycleService cycles;
 
-    public FinanceController(FinanceService service, FinanceCategoryService categories) {
+    public FinanceController(FinanceService service, FinanceCategoryService categories,
+                             FinanceCycleService cycles) {
         this.service = service;
         this.categories = categories;
+        this.cycles = cycles;
     }
 
     @GetMapping
     public String list(@RequestParam(required = false) String month,
                        @RequestParam(required = false) String year,
                        @RequestParam(required = false) String sortAmount,
+                       @RequestParam(defaultValue = "1") int page,
                        Model model) {
         YearMonth selectedMonth = resolveMonth(month, year);
         if (selectedMonth.equals(YearMonth.now())) {
             service.ensureAutomaticCarryover(selectedMonth);
         }
-        List<FinanceTransaction> transactions = service.findByMonth(selectedMonth, sortAmount);
+        List<FinanceTransaction> monthTransactions = service.findByMonth(selectedMonth, sortAmount);
+        int totalTransactions = monthTransactions.size();
+        int totalPages = Math.max(1, (int) Math.ceil((double) totalTransactions / TRANSACTIONS_PER_PAGE));
+        int currentPage = Math.min(Math.max(page, 1), totalPages);
+        int fromIndex = Math.min((currentPage - 1) * TRANSACTIONS_PER_PAGE, totalTransactions);
+        int toIndex = Math.min(fromIndex + TRANSACTIONS_PER_PAGE, totalTransactions);
+        List<FinanceTransaction> transactions = monthTransactions.subList(fromIndex, toIndex);
         Set<Long> duplicatedToNextMonthIds = service.findDuplicatedToNextMonthIds(transactions);
 
         BigDecimal income = service.totalByTypeForMonth(TransactionType.INGRESO, selectedMonth);
@@ -60,12 +73,19 @@ public class FinanceController {
                 "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre");
         List<Integer> filterYears = availableYears(selectedMonth.getYear());
 
+        model.addAttribute("activePage", "finances");
         model.addAttribute("transaction", new FinanceTransaction());
         model.addAttribute("types", List.of(TransactionType.INGRESO, TransactionType.GASTO,
                 TransactionType.AHORRO, TransactionType.INYECCION));
         model.addAttribute("fundingSources", FundingSource.values());
         model.addAttribute("transactions", transactions);
+        model.addAttribute("totalTransactions", totalTransactions);
+        model.addAttribute("currentPage", currentPage);
+        model.addAttribute("totalPages", totalPages);
+        model.addAttribute("pageStart", totalTransactions == 0 ? 0 : fromIndex + 1);
+        model.addAttribute("pageEnd", toIndex);
         model.addAttribute("linkedPaymentTransactionIds", service.linkedPaymentTransactionIds());
+        model.addAttribute("cycleMovementTransactionIds", cycles.currentMovementIds(LocalDate.now()));
         model.addAttribute("duplicatedToNextMonthIds", duplicatedToNextMonthIds);
         model.addAttribute("selectedMonth", selectedMonth);
         model.addAttribute("sortAmount", sortAmount != null ? sortAmount : "");

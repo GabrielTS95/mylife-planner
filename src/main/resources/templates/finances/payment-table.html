@@ -5,7 +5,8 @@
   <table class="table align-middle mb-0 cycle-payments-table">
     <thead><tr><th scope="col">Pago / acreedor</th><th scope="col">Vencimiento</th><th scope="col">Origen</th><th scope="col">Estado al corte</th><th scope="col" class="text-end">Importe</th><th scope="col">Acciones</th></tr></thead>
     <tbody>
-      <tr th:each="row : ${rows}" th:with="p=${row.payment}">
+      <tr th:each="row : ${rows}" th:with="p=${row.payment}" class="cycle-payment-row"
+          th:classappend="${row.overdue} ? ' cycle-payment-row-overdue' : (${row.paid} ? ' cycle-payment-row-paid' : '')">
         <td><strong th:text="${p.description}"></strong><small class="d-block text-muted" th:text="${p.creditor}"></small>
           <small th:if="${p.installmentCount > 1}" class="d-block text-muted" th:text="|Cuota ${p.installmentNumber} de ${p.installmentCount}|"></small>
         </td>

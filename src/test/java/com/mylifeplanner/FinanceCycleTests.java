@@ -192,6 +192,30 @@ class FinanceCycleTests {
     }
 
     @Test
+    void dashboardRotatesUpcomingAndOverduePaymentRemindersWithExactDays() throws Exception {
+        LocalDate today = LocalDate.now();
+        owner.setPages(Set.of(AppPage.HOME, AppPage.FINANCES));
+        users.saveAndFlush(owner);
+        pending("Cuota vencida", "150", today.minusDays(3));
+        pending("Cuota próxima", "90", today.plusDays(5));
+
+        var reminders = cycles.paymentReminders(today);
+        assertThat(reminders).extracting(FinanceCycleService.PaymentReminder::daysUntilDue)
+                .containsExactly(-3L, 5L);
+        assertThat(reminders).extracting(FinanceCycleService.PaymentReminder::overdue)
+                .containsExactly(true, false);
+
+        mvc.perform(get("/").with(user(owner.getUsername())))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("data-interval=\"10000\"")))
+                .andExpect(content().string(containsString("payment-reminder-overdue")))
+                .andExpect(content().string(containsString("Venció hace 3 días")))
+                .andExpect(content().string(containsString("Faltan 5 días")))
+                .andExpect(content().string(containsString("Cuota vencida")))
+                .andExpect(content().string(containsString("Cuota próxima")));
+    }
+
+    @Test
     void carriesAvailableBalanceOnceAndKeepsItSeparateFromIncome() throws Exception {
         java.time.YearMonth source = java.time.YearMonth.from(LocalDate.now()).plusMonths(3);
         movement("2400", TransactionType.INGRESO, source.atDay(5));
@@ -249,7 +273,9 @@ class FinanceCycleTests {
         var payment = pending("Pago visible", "80", LocalDate.now());
         pending("Próximo pago", "50", LocalDate.now().plusMonths(2));
         mvc.perform(get("/finances/cycle").with(user(owner.getUsername())))
-                .andExpect(status().isOk()).andExpect(content().string(containsString("Disponible tras compromisos")))
+                .andExpect(status().isOk()).andExpect(content().string(containsString("Tras compromisos")))
+                .andExpect(content().string(containsString("id=\"newPaymentModal\"")))
+                .andExpect(content().string(containsString("id=\"cycleSettingsModal\"")))
                 .andExpect(content().string(containsString("Pago visible")))
                 .andExpect(content().string(containsString("Próximo pago")));
         mvc.perform(get("/finances/cycle/payments/{id}/edit", payment.getId()).with(user(owner.getUsername())))
@@ -258,11 +284,13 @@ class FinanceCycleTests {
                         .param("description", "Conservar texto").param("creditor", "Banco").param("amount", "0")
                         .param("dueDate", LocalDate.now().toString()).param("installments", "121"))
                 .andExpect(status().isOk()).andExpect(model().attributeHasFieldErrors("paymentForm", "amount", "installments"))
+                .andExpect(model().attribute("openCycleModal", "newPaymentModal"))
                 .andExpect(content().string(containsString("Conservar texto")));
         assertThat(payments.findAllByUserId(owner.getId())).hasSize(2);
         mvc.perform(post("/finances/cycle/settings").with(user(owner.getUsername())).with(csrf())
                         .param("payday", "32").param("openingBalance", "0").param("openingDate", LocalDate.now().plusDays(1).toString()))
-                .andExpect(status().isOk()).andExpect(model().attributeHasFieldErrors("settingsForm", "payday", "openingDate"));
+                .andExpect(status().isOk()).andExpect(model().attributeHasFieldErrors("settingsForm", "payday", "openingDate"))
+                .andExpect(model().attribute("openCycleModal", "cycleSettingsModal"));
         assertThat(users.findById(owner.getId()).orElseThrow().getPayday()).isEqualTo(28);
     }
 
@@ -271,8 +299,14 @@ class FinanceCycleTests {
         var payment = pending("Cuota protegida", "60", LocalDate.now());
         cycles.pay(payment.getId(), LocalDate.now());
         Long txId = cycles.find(payment.getId()).getTransaction().getId();
+        FinanceTransaction manual = movement("25", TransactionType.INGRESO, LocalDate.now());
         mvc.perform(get("/finances").with(user(owner.getUsername())))
-                .andExpect(status().isOk()).andExpect(content().string(containsString("Gestionar pago en Mi ciclo")));
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("cycleMovementTransactionIds",
+                        org.hamcrest.Matchers.hasItems(txId, manual.getId())))
+                .andExpect(content().string(containsString("Gestionar pago en Mi ciclo")))
+                .andExpect(content().string(containsString("class=\"cycle-link-badge\"")))
+                .andExpect(content().string(containsString("aria-label=\"Ver este pago en Mi ciclo\">C</a>")));
         mvc.perform(post("/finances/{id}/edit", txId).with(user(owner.getUsername())).with(csrf())
                         .param("amount", "1").param("type", "INGRESO"))
                 .andExpect(status().isConflict());

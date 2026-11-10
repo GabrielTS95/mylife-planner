@@ -2255,3 +2255,70 @@ body.sidebar-collapsed .app-sidebar {
   font-size: 12px;
   white-space: nowrap;
 }
+
+.movement-detail-title {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+}
+
+.cycle-link-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  border: 2px solid #16a34a;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: .72rem;
+  font-weight: 900;
+  text-decoration: none;
+  box-shadow: 0 2px 7px rgba(22, 163, 74, .18);
+}
+
+.cycle-link-badge:hover {
+  background: #16a34a;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.cycle-link-badge:focus-visible { outline: 3px solid #86efac; outline-offset: 2px; }
+
+.finance-table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--line) 18%, var(--card-bg));
+}
+
+.finance-record-count { color: var(--muted); font-size: .82rem; }
+.finance-record-count strong { color: var(--ink); }
+.finance-pagination { display: flex; align-items: center; gap: .65rem; }
+.finance-page-status { color: var(--muted); font-size: .8rem; white-space: nowrap; }
+.finance-page-status strong { color: var(--ink); }
+.finance-page-button {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card-bg);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+}
+.finance-page-button:hover { border-color: var(--brand); background: var(--brand); color: #fff; }
+.finance-page-button.disabled { pointer-events: none; opacity: .4; }
+[data-theme="dark"] .cycle-link-badge { background: #14532d; color: #bbf7d0; border-color: #22c55e; }
+
+@media (max-width: 575px) {
+  .finance-table-footer { align-items: stretch; flex-direction: column-reverse; }
+  .finance-pagination { justify-content: space-between; }
+  .finance-record-count { text-align: center; }
+}

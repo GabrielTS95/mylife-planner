@@ -1,21 +1,123 @@
-.cycle-period { display: flex; flex-direction: row; justify-content: space-between; align-items: center; gap: 20px; padding: 24px; flex-wrap: wrap; }
-.finance-cycle-page { --bs-body-color: var(--ink); --bs-body-bg: var(--card-bg); --bs-secondary-color: var(--muted); --bs-border-color: var(--line); }
-.finance-cycle-page .table { --bs-table-bg: var(--card-bg); --bs-table-color: var(--ink); --bs-table-border-color: var(--line); }
+.finance-cycle-page {
+  --bs-body-color: var(--ink);
+  --bs-body-bg: var(--card-bg);
+  --bs-secondary-color: var(--muted);
+  --bs-border-color: var(--line);
+}
+
 [data-theme="dark"] .finance-cycle-page { color-scheme: dark; }
-.cycle-calculation { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 16px 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-bg); color: var(--muted); font-size: .875rem; }
+.finance-cycle-page .table { --bs-table-bg: var(--card-bg); --bs-table-color: var(--ink); --bs-table-border-color: var(--line); }
+.cycle-header-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: .65rem; }
+
+.cycle-period {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.4rem 1.5rem;
+  overflow: hidden;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--brand) 8%, var(--card-bg)), var(--card-bg) 58%);
+  border-color: color-mix(in srgb, var(--brand) 22%, var(--line));
+}
+.cycle-period-main { display: flex; align-items: center; gap: 1rem; }
+.cycle-period-icon { display: grid; place-items: center; width: 54px; height: 54px; flex: 0 0 54px; border-radius: 17px; background: color-mix(in srgb, var(--brand) 14%, var(--card-bg)); color: var(--brand); font-size: 1.45rem; }
+.cycle-period-label { color: var(--brand); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.cycle-period h2 { margin: .18rem 0 .25rem; color: var(--ink); font-size: 1.35rem; font-weight: 800; letter-spacing: -.02em; }
+.cycle-period h2 i { margin: 0 .35rem; color: var(--muted); font-size: .9rem; }
+.cycle-period p { margin: 0; color: var(--muted); font-size: .88rem; }
+.cycle-period p strong { color: var(--ink); }
+.cycle-dot { margin: 0 .3rem; }
+
+.cycle-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.cycle-summary-card {
+  --cycle-accent: #2563eb;
+  --cycle-soft: #dbeafe;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 178px;
+  padding: 1.15rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--card-bg);
+  box-shadow: var(--shadow-sm);
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.cycle-summary-card::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: var(--cycle-accent); }
+.cycle-summary-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--cycle-accent) 36%, var(--line)); box-shadow: var(--shadow-md); }
+.cycle-summary-balance { --cycle-accent: #2563eb; --cycle-soft: #dbeafe; }
+.cycle-summary-pending { --cycle-accent: #d97706; --cycle-soft: #fef3c7; }
+.cycle-summary-overdue { --cycle-accent: #64748b; --cycle-soft: #e2e8f0; }
+.cycle-summary-overdue.has-value { --cycle-accent: #dc2626; --cycle-soft: #fee2e2; }
+.cycle-summary-available { --cycle-accent: #059669; --cycle-soft: #d1fae5; }
+.cycle-summary-available.is-negative { --cycle-accent: #dc2626; --cycle-soft: #fee2e2; }
+.cycle-summary-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: .9rem; }
+.cycle-summary-icon { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--cycle-soft); color: var(--cycle-accent); font-size: 1.05rem; }
+.cycle-summary-kicker { color: var(--cycle-accent); font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.cycle-summary-label { color: var(--muted); font-size: .8rem; font-weight: 700; }
+.cycle-summary-card > strong { margin: .12rem 0 .25rem; color: var(--ink); font-size: clamp(1.35rem, 2vw, 1.75rem); line-height: 1.25; letter-spacing: -.03em; }
+.cycle-summary-card > small { margin-top: auto; color: var(--muted); font-size: .75rem; line-height: 1.4; }
+
+.cycle-calculation { display: flex; flex-wrap: wrap; gap: .65rem; padding: .8rem; border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--line) 24%, var(--card-bg)); color: var(--muted); font-size: .8rem; }
+.cycle-calculation > span { padding: .45rem .7rem; border: 1px solid var(--line); border-radius: 999px; background: var(--card-bg); }
 .cycle-calculation strong { color: var(--ink); }
-.cycle-available { border-color: var(--balance); }
-.cycle-details > summary { padding: 20px; color: var(--ink); font-weight: 600; cursor: pointer; }
-.cycle-details[open] > summary { border-bottom: 1px solid var(--line); margin-bottom: 16px; }
-.cycle-payments-table th, .cycle-payments-table td { padding: 16px; }
-.cycle-payment-actions { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; }
+
+.cycle-list-card, .cycle-details { overflow: hidden; }
+.cycle-list-card .card-panel-header { padding: 1.25rem 1.35rem; border-bottom: 1px solid var(--line); }
+.cycle-list-card .card-panel-header h3 { margin-bottom: .25rem; }
+.cycle-list-card .card-panel-header p { margin-bottom: 0; }
+.cycle-details > summary { padding: 1.15rem 1.35rem; color: var(--ink); font-weight: 700; cursor: pointer; }
+.cycle-details > summary:hover { background: color-mix(in srgb, var(--brand) 5%, var(--card-bg)); }
+.cycle-details[open] > summary { margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
+
+.cycle-payments-table th { padding: .85rem 1rem; color: var(--muted); font-size: .7rem; letter-spacing: .05em; text-transform: uppercase; white-space: nowrap; }
+.cycle-payments-table td { padding: 1rem; }
+.cycle-payment-row { transition: background-color .15s ease; }
+.cycle-payment-row:hover td { background: color-mix(in srgb, var(--brand) 4%, var(--card-bg)); }
+.cycle-payment-row-overdue td:first-child { box-shadow: inset 4px 0 #ef4444; }
+.cycle-payment-row-paid { opacity: .78; }
+.cycle-payment-actions { display: flex; align-items: flex-start; flex-wrap: wrap; gap: .45rem; }
 .cycle-payment-actions form { margin: 0; }
-.cycle-pay-action { min-width: 140px; }
+.cycle-pay-action { min-width: 132px; }
 .cycle-pay-action summary { list-style: none; }
 .cycle-pay-action summary::-webkit-details-marker { display: none; }
-#newPayment { scroll-margin-top: 90px; }
+
+.cycle-modal .modal-content { color: var(--ink); border: 1px solid var(--line); border-radius: 22px; background: var(--card-bg); box-shadow: 0 28px 80px rgba(15, 23, 42, .3); overflow: hidden; }
+.cycle-modal .modal-header { padding: 1.1rem 1.3rem; border-bottom: 1px solid var(--line); }
+.cycle-modal .modal-body { padding: 1.35rem; }
+.cycle-modal .modal-footer { padding: 1rem 1.35rem; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--line) 20%, var(--card-bg)); }
+.cycle-modal-header-payment { background: linear-gradient(120deg, color-mix(in srgb, #059669 12%, var(--card-bg)), var(--card-bg)); }
+.cycle-modal-header-settings { background: linear-gradient(120deg, color-mix(in srgb, #2563eb 12%, var(--card-bg)), var(--card-bg)); }
+.cycle-modal-heading { display: flex; align-items: center; gap: .85rem; }
+.cycle-modal-heading > div > span { display: block; margin-bottom: .1rem; color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.cycle-modal-heading .modal-title { color: var(--ink); font-size: 1.15rem; font-weight: 800; }
+.cycle-modal-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; background: var(--card-bg); color: var(--brand); box-shadow: var(--shadow-sm); font-size: 1.15rem; }
+.cycle-modal-header-payment .cycle-modal-icon { color: #059669; }
+.cycle-modal-intro { margin: 0 0 1.2rem; padding: .75rem .9rem; border-left: 3px solid var(--brand); border-radius: 0 10px 10px 0; background: color-mix(in srgb, var(--brand) 6%, var(--card-bg)); color: var(--muted); font-size: .86rem; }
+[data-theme="dark"] .cycle-modal .btn-close { filter: invert(1) grayscale(100%) brightness(200%); }
+
+@media (max-width: 1199px) {
+  .cycle-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 @media (max-width: 767px) {
-  .cycle-period { padding: 18px; }
-  .cycle-period h2 { font-size: 1.1rem; }
-  .cycle-payments-table { min-width: 740px; }
+  .cycle-header-actions { justify-content: flex-start; }
+  .cycle-period { align-items: flex-start; padding: 1.1rem; }
+  .cycle-period-main { align-items: flex-start; }
+  .cycle-period-icon { width: 44px; height: 44px; flex-basis: 44px; border-radius: 14px; }
+  .cycle-period h2 { font-size: 1.05rem; }
+  .cycle-period nav { width: 100%; }
+  .cycle-payments-table { min-width: 760px; }
+}
+
+@media (max-width: 575px) {
+  .cycle-summary-grid { grid-template-columns: 1fr; }
+  .cycle-summary-card { min-height: 160px; }
+  .cycle-period-main { width: 100%; }
+  .cycle-dot { display: none; }
+  .cycle-period p { display: grid; gap: .15rem; }
+  .cycle-modal .modal-dialog { margin: .65rem; }
+  .cycle-modal .modal-body { padding: 1rem; }
 }

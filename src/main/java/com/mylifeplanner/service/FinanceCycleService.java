@@ -14,8 +14,11 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @Validated
@@ -35,6 +38,7 @@ public class FinanceCycleService {
 
     public record Cycle(LocalDate start, LocalDate end, LocalDate nextPayday) {}
     public record PaymentRow(ScheduledPayment payment, String status, boolean paid, boolean overdue) {}
+    public record PaymentReminder(ScheduledPayment payment, long daysUntilDue, boolean overdue) {}
     public record Overview(Cycle cycle, LocalDate asOf, BigDecimal carriedBalance, BigDecimal income,
                            BigDecimal expenses, BigDecimal externalFundedExpenses, BigDecimal savings,
                            BigDecimal balance, BigDecimal pending, BigDecimal pendingFromBudget,
@@ -51,6 +55,28 @@ public class FinanceCycleService {
         }
         LocalDate next = paydayIn(month.plusMonths(1), payday);
         return new Cycle(start, next.minusDays(1), next);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PaymentReminder> paymentReminders(LocalDate today) {
+        accounts.requireAccess(AppPage.FINANCES);
+        return payments.findAllByUserId(accounts.currentUser().getId()).stream()
+                .filter(payment -> !payment.isPaid())
+                .map(payment -> {
+                    long days = ChronoUnit.DAYS.between(today, payment.getDueDate());
+                    return new PaymentReminder(payment, days, days < 0);
+                })
+                .sorted(Comparator.comparing(PaymentReminder::overdue).reversed()
+                        .thenComparing(reminder -> reminder.payment().getDueDate())
+                        .thenComparing(reminder -> reminder.payment().getId()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Set<Long> currentMovementIds(LocalDate today) {
+        return overview(today, today).movements().stream()
+                .map(FinanceTransaction::getId)
+                .collect(Collectors.toSet());
     }
 
     private static LocalDate paydayIn(YearMonth month, int payday) {

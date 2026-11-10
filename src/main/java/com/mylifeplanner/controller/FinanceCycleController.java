@@ -51,7 +51,10 @@ public class FinanceCycleController {
     @PostMapping("/settings")
     public String settings(@Valid @ModelAttribute("settingsForm") CycleSettingsForm form, BindingResult errors,
                            Model model, RedirectAttributes flash) {
-        if (errors.hasErrors()) return page(null, model);
+        if (errors.hasErrors()) {
+            model.addAttribute("openCycleModal", "cycleSettingsModal");
+            return page(null, model);
+        }
         cycles.configure(form);
         flash.addFlashAttribute("actionSuccess", "Tu ciclo y saldo inicial se actualizaron.");
         return "redirect:/finances/cycle";
@@ -60,7 +63,10 @@ public class FinanceCycleController {
     @PostMapping("/payments")
     public String create(@Valid @ModelAttribute("paymentForm") PaymentForm form, BindingResult errors,
                          Model model, RedirectAttributes flash) {
-        if (errors.hasErrors()) return page(null, model);
+        if (errors.hasErrors()) {
+            model.addAttribute("openCycleModal", "newPaymentModal");
+            return page(null, model);
+        }
         cycles.create(form);
         flash.addFlashAttribute("actionSuccess", form.getInstallments() == 1 ? "Pago pendiente creado."
                 : "Se crearon " + form.getInstallments() + " cuotas mensuales pendientes.");

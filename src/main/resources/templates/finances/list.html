@@ -129,7 +129,6 @@
       <button type="button" class="btn btn-sm btn-outline-dark rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#newCategoryModal">
         <i class="bi bi-tag me-1" aria-hidden="true"></i>Nueva Categoría
       </button>
-      <span class="badge bg-secondary-subtle text-secondary px-3 py-2 rounded-pill" th:text="${#lists.size(transactions) + ' registros'}"></span>
       </div>
     </div>
     <div class="table-responsive">
@@ -137,7 +136,6 @@
         <thead class="table-light">
         <tr>
           <th style="width: 50px;" class="text-center">#</th>
-          <th>Fecha Registro</th>
           <th>Fecha de pago</th>
           <th>Detalle</th>
           <th>Categoría</th>
@@ -155,11 +153,17 @@
         </thead>
         <tbody>
         <tr th:each="tx, iterStat : ${transactions}" th:attr="data-amount=${tx.amount}">
-          <td class="text-center text-muted fw-semibold row-number" th:text="${iterStat.count}">1</td>
-          <td th:text="${tx.registrationDate != null ? tx.registrationDate : '-'}">-</td>
-          <td th:text="${tx.transactionDate != null ? tx.transactionDate : '-'}">-</td>
+          <td class="text-center text-muted fw-semibold row-number" th:text="${pageStart + iterStat.index}">1</td>
+          <td th:text="${tx.transactionDate != null ? #temporals.format(tx.transactionDate, 'dd/MM/yyyy') : '-'}">-</td>
           <td>
-            <strong th:text="${tx.description != null && !tx.description.isBlank() ? tx.description : 'Sin descripción'}"></strong>
+            <div class="movement-detail-title">
+              <a th:if="${cycleMovementTransactionIds.contains(tx.id)}"
+                 th:href="@{/finances/cycle(date=${tx.transactionDate})}"
+                 class="cycle-link-badge"
+                 title="Este movimiento está incluido en Mi ciclo"
+                 aria-label="Ver este pago en Mi ciclo">C</a>
+              <strong th:text="${tx.description != null && !tx.description.isBlank() ? tx.description : 'Sin descripción'}"></strong>
+            </div>
             <div th:if="${tx.type.name() == 'INYECCION'}" class="small text-muted mt-1">
               <span>Canalizado: S/ <span th:text="${#numbers.formatDecimal(tx.allocatedAmount, 1, 2)}"></span></span>
               <span> · Sin asignar: S/ <span th:text="${#numbers.formatDecimal(tx.unallocatedAmount, 1, 2)}"></span></span>
@@ -215,11 +219,30 @@
           </td>
         </tr>
         <tr th:if="${#lists.isEmpty(transactions)}">
-          <td colspan="9" class="text-center text-muted py-4">No hay movimientos en este mes.</td>
+          <td colspan="8" class="text-center text-muted py-4">No hay movimientos en este mes.</td>
         </tr>
         </tbody>
       </table>
     </div>
+    <footer class="finance-table-footer" th:if="${totalTransactions > 0}">
+      <p class="finance-record-count mb-0">
+        Mostrando <strong th:text="${pageStart}">1</strong>–<strong th:text="${pageEnd}">10</strong>
+        de <strong th:text="${totalTransactions}">10</strong> registros
+      </p>
+      <nav class="finance-pagination" aria-label="Paginación de movimientos">
+        <a class="finance-page-button" th:classappend="${currentPage == 1} ? ' disabled' : ''"
+           th:href="${currentPage > 1} ? @{/finances(month=${selectedMonth},sortAmount=${sortAmount},page=${currentPage - 1})} : null"
+           aria-label="Página anterior" th:attr="aria-disabled=${currentPage == 1}">
+          <i class="bi bi-chevron-left" aria-hidden="true"></i>
+        </a>
+        <span class="finance-page-status">Página <strong th:text="${currentPage}">1</strong> de <strong th:text="${totalPages}">1</strong></span>
+        <a class="finance-page-button" th:classappend="${currentPage == totalPages} ? ' disabled' : ''"
+           th:href="${currentPage < totalPages} ? @{/finances(month=${selectedMonth},sortAmount=${sortAmount},page=${currentPage + 1})} : null"
+           aria-label="Página siguiente" th:attr="aria-disabled=${currentPage == totalPages}">
+          <i class="bi bi-chevron-right" aria-hidden="true"></i>
+        </a>
+      </nav>
+    </footer>
   </section>
 
   <!-- WORKSPACE: GRAFICO RESUMEN + MOVIMIENTOS RECIENTES -->
@@ -621,32 +644,8 @@
 
       const url = new URL(window.location);
       url.searchParams.set('sortAmount', nextSort);
-      window.history.replaceState({}, '', url);
-
-      const tbody = document.querySelector('#monthlyTransactions table tbody');
-      if (tbody) {
-        const rows = Array.from(tbody.querySelectorAll('tr[data-amount]'));
-        if (rows.length > 1) {
-          rows.sort((a, b) => {
-            const valA = parseFloat(a.dataset.amount || 0);
-            const valB = parseFloat(b.dataset.amount || 0);
-            return nextSort === 'desc' ? (valB - valA) : (valA - valB);
-          });
-          rows.forEach((row, idx) => {
-            tbody.appendChild(row);
-            const numCell = row.querySelector('.row-number');
-            if (numCell) numCell.textContent = idx + 1;
-          });
-        }
-      }
-
-      if (nextSort === 'desc') {
-        sortAmountIcon.className = 'bi bi-sort-numeric-down-alt text-primary';
-        sortAmountHeader.setAttribute('title', 'Ordenado de mayor a menor. Haz clic para ordenar de menor a mayor.');
-      } else {
-        sortAmountIcon.className = 'bi bi-sort-numeric-down text-primary';
-        sortAmountHeader.setAttribute('title', 'Ordenado de menor a mayor. Haz clic para ordenar de mayor a menor.');
-      }
+      url.searchParams.set('page', '1');
+      window.location.assign(url);
     });
   }
 </script>

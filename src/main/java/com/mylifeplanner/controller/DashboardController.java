@@ -11,6 +11,7 @@ import com.mylifeplanner.model.TaskStatus;
 import com.mylifeplanner.model.TransactionType;
 import com.mylifeplanner.service.ActivityService;
 import com.mylifeplanner.service.FinanceService;
+import com.mylifeplanner.service.FinanceCycleService;
 import com.mylifeplanner.service.GoalService;
 import com.mylifeplanner.service.TaskService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -36,16 +37,19 @@ public class DashboardController {
     private final TaskService taskService;
     private final ActivityService activityService;
     private final FinanceService financeService;
+    private final FinanceCycleService financeCycleService;
     private final GoalService goalService;
     private final ActivityCategoryView activityCategoryView;
 
     public DashboardController(TaskService taskService, ActivityService activityService,
-                               FinanceService financeService, GoalService goalService,
+                               FinanceService financeService, FinanceCycleService financeCycleService,
+                               GoalService goalService,
                                ActivityCategoryView activityCategoryView, AccountService accounts) {
         this.accounts = accounts;
         this.taskService = taskService;
         this.activityService = activityService;
         this.financeService = financeService;
+        this.financeCycleService = financeCycleService;
         this.goalService = goalService;
         this.activityCategoryView = activityCategoryView;
     }
@@ -192,6 +196,9 @@ public class DashboardController {
         model.addAttribute("financeChartValues", List.of(ingresos, gastos, ahorros));
         model.addAttribute("categoryLabels", expensesByCategory.keySet().stream().toList());
         model.addAttribute("categoryExpenses", expensesByCategory.values().stream().toList());
+        model.addAttribute("paymentReminders", accounts.canAccess(AppPage.FINANCES)
+                ? financeCycleService.paymentReminders(today)
+                : List.of());
 
         // Tareas attributes
         model.addAttribute("tasks", allTasks);

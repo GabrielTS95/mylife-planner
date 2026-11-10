@@ -365,6 +365,37 @@ class FinanceActionsTests {
     }
 
     @Test
+    void paginatesMovementsByTenAndFormatsPaymentDates() throws Exception {
+        java.time.YearMonth testMonth = java.time.YearMonth.of(2030, 7);
+        for (int day = 1; day <= 12; day++) {
+            FinanceTransaction tx = new FinanceTransaction();
+            tx.setAmount(BigDecimal.valueOf(day));
+            tx.setDescription("Movimiento paginado " + day);
+            tx.setCategory("Otros");
+            tx.setTransactionDate(testMonth.atDay(day));
+            finance().save(tx);
+        }
+
+        mvc.perform(get("/finances").param("month", "7").param("year", "2030").param("page", "1"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("transactions", org.hamcrest.Matchers.hasSize(10)))
+                .andExpect(model().attribute("totalTransactions", 12))
+                .andExpect(model().attribute("currentPage", 1))
+                .andExpect(model().attribute("totalPages", 2))
+                .andExpect(content().string(containsString("12/07/2030")))
+                .andExpect(content().string(containsString("Mostrando")))
+                .andExpect(content().string(containsString("Página <strong>1</strong> de <strong>2</strong>")));
+
+        mvc.perform(get("/finances").param("month", "7").param("year", "2030").param("page", "2"))
+                .andExpect(status().isOk())
+                .andExpect(model().attribute("transactions", org.hamcrest.Matchers.hasSize(2)))
+                .andExpect(model().attribute("currentPage", 2))
+                .andExpect(model().attribute("pageStart", 11))
+                .andExpect(model().attribute("pageEnd", 12))
+                .andExpect(content().string(containsString("02/07/2030")));
+    }
+
+    @Test
     void cardHeadersAndDashForMissingPaymentDate() throws Exception {
         FinanceTransaction tx = new FinanceTransaction();
         tx.setAmount(new BigDecimal("80.00"));
@@ -377,7 +408,7 @@ class FinanceActionsTests {
         mvc.perform(get("/finances").param("month", "3").param("year", "2026"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("<th style=\"width: 50px;\" class=\"text-center\">#</th>")))
-                .andExpect(content().string(containsString("<th>Fecha Registro</th>")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Fecha Registro"))))
                 .andExpect(content().string(containsString("<th>Fecha de pago</th>")))
                 .andExpect(content().string(containsString("<th>Detalle</th>")))
                 .andExpect(content().string(containsString("<th>Categoría</th>")))

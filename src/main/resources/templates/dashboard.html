@@ -10,6 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <link rel="stylesheet" th:href="@{/css/app.css}">
+  <link rel="stylesheet" th:href="@{/css/dashboard-notifications.css}">
   <link rel="stylesheet" th:href="@{/css/footer.css}">
 </head>
 <body class="dashboard-shell">
@@ -424,6 +425,54 @@
   </section>
 
 </main>
+
+<aside id="paymentReminderCenter"
+       class="payment-reminder-center"
+       th:if="${!#lists.isEmpty(paymentReminders)}"
+       data-interval="10000"
+       aria-live="polite"
+       aria-atomic="true"
+       aria-label="Recordatorios de pagos pendientes">
+  <article th:each="reminder : ${paymentReminders}"
+           class="payment-reminder"
+           th:classappend="${reminder.overdue} ? ' payment-reminder-overdue' : ' payment-reminder-upcoming'"
+           hidden>
+    <div class="payment-reminder-icon" aria-hidden="true">
+      <i class="bi" th:classappend="${reminder.overdue} ? ' bi-exclamation-octagon-fill' : ' bi-clock-fill'"></i>
+    </div>
+    <div class="payment-reminder-content">
+      <span class="payment-reminder-status"
+            th:text="${reminder.overdue} ? 'Pago vencido' : 'Pago pendiente'">Pago pendiente</span>
+      <strong th:text="${reminder.payment.description}">Cuota pendiente</strong>
+      <span class="payment-reminder-meta">
+        <span th:text="|S/ ${#numbers.formatDecimal(reminder.payment.amount, 1, 2)}|">S/ 0.00</span>
+        <span aria-hidden="true">·</span>
+        <span th:text="${reminder.payment.creditor}">Acreedor</span>
+      </span>
+      <span class="payment-reminder-days"
+            th:if="${reminder.daysUntilDue < 0}"
+            th:text="|Venció hace ${reminder.daysUntilDue * -1} ${reminder.daysUntilDue == -1 ? 'día' : 'días'} · ${#temporals.format(reminder.payment.dueDate, 'dd/MM/yyyy')}|">
+      </span>
+      <span class="payment-reminder-days"
+            th:if="${reminder.daysUntilDue == 0}"
+            th:text="|Vence hoy · ${#temporals.format(reminder.payment.dueDate, 'dd/MM/yyyy')}|">
+      </span>
+      <span class="payment-reminder-days"
+            th:if="${reminder.daysUntilDue == 1}"
+            th:text="|Falta 1 día · ${#temporals.format(reminder.payment.dueDate, 'dd/MM/yyyy')}|">
+      </span>
+      <span class="payment-reminder-days"
+            th:if="${reminder.daysUntilDue > 1}"
+            th:text="|Faltan ${reminder.daysUntilDue} días · ${#temporals.format(reminder.payment.dueDate, 'dd/MM/yyyy')}|">
+      </span>
+      <a th:href="@{/finances/cycle}" class="payment-reminder-link">Ver y registrar pago <i class="bi bi-arrow-right"></i></a>
+    </div>
+    <button type="button" class="payment-reminder-close" aria-label="Cerrar este recordatorio">
+      <i class="bi bi-x-lg" aria-hidden="true"></i>
+    </button>
+  </article>
+</aside>
+
 <div th:replace="~{fragments/footer :: footer}"></div>
 
 <!-- ==========================================
@@ -431,6 +480,7 @@
      ========================================== -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script th:src="@{/js/dashboard-notifications.js}"></script>
 
 <script th:inline="javascript">
   // Chart defaults

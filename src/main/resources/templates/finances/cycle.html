@@ -20,15 +20,26 @@
       <h1><i class="bi bi-calendar2-range text-success"></i> Mi ciclo</h1>
       <p>Organiza tus pagos y conoce cuánto te queda antes del próximo sueldo.</p>
     </div>
-    <a th:href="@{/finances}" class="btn btn-outline-primary rounded-pill"><i class="bi bi-receipt me-1"></i>Ver movimientos</a>
+    <div class="cycle-header-actions">
+      <button type="button" class="btn btn-success rounded-pill" data-bs-toggle="modal" data-bs-target="#newPaymentModal">
+        <i class="bi bi-plus-lg me-1"></i>Nuevo pago
+      </button>
+      <button type="button" class="btn btn-outline-primary rounded-pill" data-bs-toggle="modal" data-bs-target="#cycleSettingsModal">
+        <i class="bi bi-sliders me-1"></i>Configurar ciclo
+      </button>
+      <a th:href="@{/finances}" class="btn btn-outline-secondary rounded-pill"><i class="bi bi-receipt me-1"></i>Movimientos</a>
+    </div>
   </header>
 
   <div th:if="${cycleError}" class="alert alert-danger" role="alert" th:text="${cycleError}"></div>
   <section class="card-panel cycle-period mb-4" aria-label="Período de cobro">
-    <div>
-      <span class="text-muted small" th:text="${historical} ? 'Ciclo anterior' : 'Ciclo actual'"></span>
-      <h2 class="h4 mb-1"><span th:text="${#temporals.format(c.start, 'dd/MM/yyyy')}"></span> — <span th:text="${#temporals.format(c.end, 'dd/MM/yyyy')}"></span></h2>
-      <p class="text-muted mb-0">Próximo cobro: <strong th:text="${#temporals.format(c.nextPayday, 'dd/MM/yyyy')}"></strong> · Día de cobro: <span th:text="${payday}"></span></p>
+    <div class="cycle-period-main">
+      <div class="cycle-period-icon"><i class="bi bi-calendar2-week"></i></div>
+      <div>
+        <span class="cycle-period-label" th:text="${historical} ? 'Ciclo anterior' : 'Ciclo actual'"></span>
+        <h2><span th:text="${#temporals.format(c.start, 'dd/MM/yyyy')}"></span> <i class="bi bi-arrow-right"></i> <span th:text="${#temporals.format(c.end, 'dd/MM/yyyy')}"></span></h2>
+        <p>Próximo cobro: <strong th:text="${#temporals.format(c.nextPayday, 'dd/MM/yyyy')}"></strong> <span class="cycle-dot">·</span> Día de cobro: <strong th:text="${payday}"></strong></p>
+      </div>
     </div>
     <nav class="d-flex gap-2 flex-wrap" aria-label="Cambiar ciclo">
       <a class="btn btn-outline-secondary btn-sm" th:href="@{/finances/cycle(date=${c.start.minusDays(1)})}">← Anterior</a>
@@ -37,11 +48,31 @@
     </nav>
   </section>
 
-  <section class="metrics-grid-4 mb-3" aria-label="Resumen del ciclo">
-    <div class="stat-card-modern"><div class="stat-icon-wrapper icon-balance"><i class="bi bi-wallet2"></i></div><div class="stat-info"><span>Saldo del presupuesto</span><strong>S/ <span th:text="${#numbers.formatDecimal(overview.balance, 1, 2)}"></span></strong><small>Después de gastos del presupuesto y ahorros</small></div></div>
-    <div class="stat-card-modern"><div class="stat-icon-wrapper icon-saving"><i class="bi bi-calendar-check"></i></div><div class="stat-info"><span>Pagos pendientes</span><strong>S/ <span th:text="${#numbers.formatDecimal(overview.pending, 1, 2)}"></span></strong><small>S/ <span th:text="${#numbers.formatDecimal(overview.pendingFromBudget, 1, 2)}"></span> comprometen el presupuesto</small></div></div>
-    <div class="stat-card-modern"><div class="stat-icon-wrapper icon-expense"><i class="bi bi-exclamation-circle"></i></div><div class="stat-info"><span>De ellos, vencidos</span><strong>S/ <span th:text="${#numbers.formatDecimal(overview.overdue, 1, 2)}"></span></strong><small>Incluidos en pendientes</small></div></div>
-    <div class="stat-card-modern cycle-available"><div class="stat-icon-wrapper icon-income"><i class="bi bi-check2-circle"></i></div><div class="stat-info"><span>Disponible tras compromisos</span><strong th:classappend="${overview.available.signum() < 0} ? 'text-danger' : ''">S/ <span th:text="${#numbers.formatDecimal(overview.available, 1, 2)}"></span></strong><small>Saldo − pendientes del presupuesto</small></div></div>
+  <section class="cycle-summary-grid mb-3" aria-label="Resumen del ciclo">
+    <article class="cycle-summary-card cycle-summary-balance">
+      <div class="cycle-summary-top"><span class="cycle-summary-icon"><i class="bi bi-wallet2"></i></span><span class="cycle-summary-kicker">Saldo</span></div>
+      <span class="cycle-summary-label">Saldo del presupuesto</span>
+      <strong>S/ <span th:text="${#numbers.formatDecimal(overview.balance, 1, 2)}"></span></strong>
+      <small>Después de gastos y ahorros</small>
+    </article>
+    <article class="cycle-summary-card cycle-summary-pending">
+      <div class="cycle-summary-top"><span class="cycle-summary-icon"><i class="bi bi-hourglass-split"></i></span><span class="cycle-summary-kicker">Por pagar</span></div>
+      <span class="cycle-summary-label">Pagos pendientes</span>
+      <strong>S/ <span th:text="${#numbers.formatDecimal(overview.pending, 1, 2)}"></span></strong>
+      <small>S/ <span th:text="${#numbers.formatDecimal(overview.pendingFromBudget, 1, 2)}"></span> comprometen el presupuesto</small>
+    </article>
+    <article class="cycle-summary-card cycle-summary-overdue" th:classappend="${overview.overdue.signum() > 0} ? ' has-value' : ''">
+      <div class="cycle-summary-top"><span class="cycle-summary-icon"><i class="bi bi-exclamation-triangle"></i></span><span class="cycle-summary-kicker">Atención</span></div>
+      <span class="cycle-summary-label">Pagos vencidos</span>
+      <strong>S/ <span th:text="${#numbers.formatDecimal(overview.overdue, 1, 2)}"></span></strong>
+      <small th:text="${overview.overdue.signum() > 0} ? 'Requieren tu atención' : 'No tienes pagos vencidos'"></small>
+    </article>
+    <article class="cycle-summary-card cycle-summary-available" th:classappend="${overview.available.signum() < 0} ? ' is-negative' : ''">
+      <div class="cycle-summary-top"><span class="cycle-summary-icon"><i class="bi bi-check2-circle"></i></span><span class="cycle-summary-kicker">Disponible</span></div>
+      <span class="cycle-summary-label">Tras compromisos</span>
+      <strong>S/ <span th:text="${#numbers.formatDecimal(overview.available, 1, 2)}"></span></strong>
+      <small>Saldo menos pendientes del presupuesto</small>
+    </article>
   </section>
   <div class="cycle-calculation mb-4">
     <span>Saldo inicial / arrastre: <strong>S/ <span th:text="${#numbers.formatDecimal(overview.carriedBalance, 1, 2)}"></span></strong></span>
@@ -54,8 +85,8 @@
   <div th:if="${overview.undatedCount > 0}" class="alert alert-warning" role="status"><strong th:text="${overview.undatedCount}"></strong> movimiento(s) sin fecha de pago no se incluyen en este saldo. <a th:href="@{/finances}">Completa sus fechas en Movimientos.</a></div>
   <div th:if="${overview.available.signum() < 0}" class="alert alert-warning" role="status">Faltan <strong>S/ <span th:text="${#numbers.formatDecimal(overview.available.negate(), 1, 2)}"></span></strong> para cubrir los compromisos registrados con el saldo al corte.</div>
 
-  <section class="card-panel mb-4">
-    <div class="card-panel-header flex-wrap"><div><h3>Pagos del ciclo y pendientes anteriores</h3><p>Al confirmar un pago, su gasto aparece automáticamente en Movimientos.</p></div><a href="#newPayment" class="btn btn-success rounded-pill">+ Nuevo pago</a></div>
+  <section class="card-panel cycle-list-card mb-4">
+    <div class="card-panel-header flex-wrap"><div><h3>Pagos del ciclo y pendientes anteriores</h3><p>Al confirmar un pago, su gasto aparece automáticamente en Movimientos.</p></div><button type="button" class="btn btn-success rounded-pill" data-bs-toggle="modal" data-bs-target="#newPaymentModal"><i class="bi bi-plus-lg me-1"></i>Nuevo pago</button></div>
     <div th:replace="~{finances/payment-table :: table(${overview.payments})}"></div>
   </section>
 
@@ -65,41 +96,6 @@
     <div th:replace="~{finances/payment-table :: table(${overview.upcoming})}"></div>
   </details>
 
-  <div class="row g-4 mb-4">
-    <section class="col-xl-7" id="newPayment">
-      <div class="card-panel p-4 h-100">
-        <h2 class="h5">Nuevo pago pendiente</h2>
-        <p class="text-muted small">Agrega una deuda, un servicio o varias cuotas mensuales. Crear pendientes no genera gastos.</p>
-        <form method="post" th:action="@{/finances/cycle/payments}" th:object="${paymentForm}">
-          <div th:replace="~{finances/payment-fields :: fields}"></div>
-          <div class="mt-3">
-            <label for="installments" class="form-label">Número de cuotas mensuales</label>
-            <input th:field="*{installments}" id="installments" type="number" class="form-control" min="1" max="120" required aria-describedby="installmentHelp">
-            <p id="installmentHelp" class="form-text">Usa 1 para un pago único. Las siguientes cuotas tendrán el mismo importe y vencerán cada mes; si el día no existe, se usa el último del mes. Incluye intereses y cargos en el importe acordado de cada cuota.</p>
-          </div>
-          <button class="btn btn-success mt-2" type="submit">Crear pagos pendientes</button>
-        </form>
-      </div>
-    </section>
-    <section class="col-xl-5">
-      <div class="card-panel p-4 h-100">
-        <h2 class="h5">Configurar mi ciclo</h2>
-        <form method="post" th:action="@{/finances/cycle/settings}" th:object="${settingsForm}">
-          <div class="alert alert-danger" role="alert" th:if="${#fields.hasAnyErrors()}"><ul class="mb-0"><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul></div>
-          <label for="payday" class="form-label mt-2">Día de cobro mensual</label>
-          <input th:field="*{payday}" type="number" class="form-control" min="1" max="31" required aria-describedby="paydayHelp">
-          <p id="paydayHelp" class="form-text">Ejemplo: día 28 → ciclo del 28 al 27. Para los días 29, 30 o 31, se ajusta al último día de los meses más cortos.</p>
-          <label for="openingBalance" class="form-label">Saldo inicial (S/)</label>
-          <input th:field="*{openingBalance}" type="number" class="form-control" step="0.01" min="-999999999999.99" max="999999999999.99" required aria-describedby="openingHelp">
-          <label for="openingDate" class="form-label mt-3">Fecha de inicio del saldo (opcional)</label>
-          <input th:field="*{openingDate}" type="date" th:max="${today}" class="form-control" aria-describedby="openingHelp">
-          <p id="openingHelp" class="form-text">Indica el dinero que tenías al empezar ese día, antes de sus movimientos. Se sumarán solo los movimientos desde esa fecha. Sin fecha, el saldo inicial es el dinero anterior a tu primer movimiento registrado. El arrastre se calcula automáticamente; no vuelvas a ingresar el sueldo ni el saldo de cada mes aquí.</p>
-          <button class="btn btn-outline-primary" type="submit">Guardar configuración</button>
-        </form>
-      </div>
-    </section>
-  </div>
-
   <details class="card-panel cycle-details mb-4">
     <summary>Movimientos que forman el saldo de este ciclo <span class="badge bg-secondary ms-2" th:text="${#lists.size(overview.movements)}"></span></summary>
     <div class="table-responsive"><table class="table mb-0"><thead><tr><th>Fecha</th><th>Detalle</th><th>Tipo</th><th>Origen</th><th class="text-end">Importe</th></tr></thead><tbody>
@@ -108,8 +104,89 @@
     </tbody></table></div>
   </details>
 </main>
+
+<div class="modal fade cycle-modal" id="newPaymentModal" tabindex="-1" aria-labelledby="newPaymentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header cycle-modal-header cycle-modal-header-payment">
+        <div class="cycle-modal-heading">
+          <span class="cycle-modal-icon"><i class="bi bi-calendar-plus"></i></span>
+          <div><span>Planificar compromiso</span><h2 class="modal-title" id="newPaymentModalLabel">Nuevo pago pendiente</h2></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <form method="post" th:action="@{/finances/cycle/payments}" th:object="${paymentForm}">
+        <div class="modal-body">
+          <p class="cycle-modal-intro">Registra una deuda, servicio o grupo de cuotas. El gasto se creará recién cuando confirmes el pago.</p>
+          <div th:replace="~{finances/payment-fields :: fields}"></div>
+          <div class="mt-3">
+            <label for="installments" class="form-label">Número de cuotas mensuales</label>
+            <input th:field="*{installments}" id="installments" type="number" class="form-control" min="1" max="120" required aria-describedby="installmentHelp">
+            <p id="installmentHelp" class="form-text mb-0">Usa 1 para un pago único. Las siguientes cuotas tendrán el mismo importe y vencerán cada mes; si el día no existe, se usará el último del mes.</p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-success" type="submit"><i class="bi bi-check2 me-1"></i>Crear pagos pendientes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade cycle-modal" id="cycleSettingsModal" tabindex="-1" aria-labelledby="cycleSettingsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header cycle-modal-header cycle-modal-header-settings">
+        <div class="cycle-modal-heading">
+          <span class="cycle-modal-icon"><i class="bi bi-sliders"></i></span>
+          <div><span>Preferencias financieras</span><h2 class="modal-title" id="cycleSettingsModalLabel">Configurar mi ciclo</h2></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <form method="post" th:action="@{/finances/cycle/settings}" th:object="${settingsForm}">
+        <div class="modal-body">
+          <p class="cycle-modal-intro">Define el día que recibes tu ingreso y el punto desde el cual se calculará el dinero disponible.</p>
+          <div class="alert alert-danger" role="alert" th:if="${#fields.hasAnyErrors()}">
+            <p class="mb-1 fw-bold">Revisa la configuración.</p>
+            <ul class="mb-0"><li th:each="error : ${#fields.allErrors()}" th:text="${error}"></li></ul>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-5">
+              <label for="payday" class="form-label">Día de cobro mensual</label>
+              <input th:field="*{payday}" type="number" class="form-control" min="1" max="31" required aria-describedby="paydayHelp">
+              <p id="paydayHelp" class="form-text">Ejemplo: día 28 crea un ciclo del 28 al 27.</p>
+            </div>
+            <div class="col-md-7">
+              <label for="openingBalance" class="form-label">Saldo inicial (S/)</label>
+              <input th:field="*{openingBalance}" type="number" class="form-control" step="0.01" min="-999999999999.99" max="999999999999.99" required aria-describedby="openingHelp">
+            </div>
+            <div class="col-12">
+              <label for="openingDate" class="form-label">Fecha de inicio del saldo (opcional)</label>
+              <input th:field="*{openingDate}" type="date" th:max="${today}" class="form-control" aria-describedby="openingHelp">
+              <p id="openingHelp" class="form-text mb-0">Indica el dinero que tenías antes de los movimientos de esa fecha. El arrastre se calcula automáticamente; no vuelvas a ingresar aquí el sueldo ni el saldo de cada mes.</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-primary" type="submit"><i class="bi bi-check2 me-1"></i>Guardar configuración</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="cycleModalState" hidden th:attr="data-open-modal=${openCycleModal}"></div>
 <div th:replace="~{fragments/footer :: footer}"></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  (() => {
+    const modalId = document.getElementById('cycleModalState')?.dataset.openModal;
+    const modal = modalId ? document.getElementById(modalId) : null;
+    if (modal) bootstrap.Modal.getOrCreateInstance(modal).show();
+  })();
+</script>
 <div th:replace="~{fragments/alerts :: alerts}"></div>
 </body>
 </html>
