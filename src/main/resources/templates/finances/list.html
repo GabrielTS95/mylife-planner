@@ -157,11 +157,15 @@
           <td th:text="${tx.transactionDate != null ? #temporals.format(tx.transactionDate, 'dd/MM/yyyy') : '-'}">-</td>
           <td>
             <div class="movement-detail-title">
-              <a th:if="${cycleMovementTransactionIds.contains(tx.id)}"
-                 th:href="@{/finances/cycle(date=${tx.transactionDate.isAfter(today) ? today : tx.transactionDate})}"
+              <a th:if="${cycleMovementTransactionIds.contains(tx.id) && !tx.transactionDate.isAfter(today)}"
+                 th:href="@{/finances/cycle(date=${tx.transactionDate})}"
                  class="cycle-link-badge"
-                 th:title="${tx.transactionDate.isAfter(today) ? 'Pertenece a Mi ciclo y se contabilizará en la fecha de pago' : 'Este movimiento está contabilizado en Mi ciclo'}"
+                 title="Este movimiento está contabilizado en Mi ciclo"
                  aria-label="Ver este movimiento en Mi ciclo">C</a>
+              <span th:if="${cycleMovementTransactionIds.contains(tx.id) && tx.transactionDate.isAfter(today)}"
+                    class="cycle-link-badge"
+                    title="Asignado a Mi ciclo; se contabilizará en la fecha de pago"
+                    aria-label="Movimiento asignado a un próximo ciclo">C</span>
               <strong th:text="${tx.description != null && !tx.description.isBlank() ? tx.description : 'Sin descripción'}"></strong>
             </div>
             <div th:if="${tx.type.name() == 'INYECCION'}" class="small text-muted mt-1">

@@ -73,15 +73,12 @@ public class FinanceCycleService {
     }
 
     @Transactional(readOnly = true)
-    public Set<Long> currentMovementIds(LocalDate today) {
+    public Set<Long> cycleMovementIds() {
         accounts.requireAccess(AppPage.FINANCES);
         AppUser user = accounts.currentUser();
-        Cycle cycle = cycleContaining(today, user.getPayday());
         LocalDate openingDate = user.getFinanceOpeningDate();
         return transactions.findAllByUserId(user.getId()).stream()
                 .filter(tx -> tx.getTransactionDate() != null)
-                .filter(tx -> !tx.getTransactionDate().isBefore(cycle.start())
-                        && !tx.getTransactionDate().isAfter(cycle.end()))
                 .filter(tx -> openingDate == null || !tx.getTransactionDate().isBefore(openingDate))
                 .filter(tx -> tx.getType() == TransactionType.INGRESO
                         || tx.getType() == TransactionType.GASTO

@@ -319,13 +319,16 @@ class FinanceCycleTests {
     }
 
     @Test
-    void marksFutureDatedMovementsThatBelongToTheCurrentCycle() {
+    void marksFutureDatedMovementsAssignedToCurrentOrUpcomingCycles() {
         LocalDate today = LocalDate.of(2026, 11, 10);
-        FinanceTransaction futureMovement = movement("80", TransactionType.GASTO,
+        FinanceTransaction currentCycleMovement = movement("80", TransactionType.GASTO,
                 LocalDate.of(2026, 11, 24));
+        FinanceTransaction upcomingCycleMovement = movement("90", TransactionType.GASTO,
+                LocalDate.of(2026, 11, 28));
 
-        assertThat(cycles.currentMovementIds(today)).contains(futureMovement.getId());
-        assertThat(cycles.overview(today, today).movements()).doesNotContain(futureMovement);
+        assertThat(cycles.cycleMovementIds()).contains(currentCycleMovement.getId(), upcomingCycleMovement.getId());
+        assertThat(cycles.overview(today, today).movements())
+                .doesNotContain(currentCycleMovement, upcomingCycleMovement);
     }
 
     @Test

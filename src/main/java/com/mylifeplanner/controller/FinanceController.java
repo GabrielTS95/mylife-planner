@@ -85,7 +85,7 @@ public class FinanceController {
         model.addAttribute("pageStart", totalTransactions == 0 ? 0 : fromIndex + 1);
         model.addAttribute("pageEnd", toIndex);
         model.addAttribute("linkedPaymentTransactionIds", service.linkedPaymentTransactionIds());
-        model.addAttribute("cycleMovementTransactionIds", cycles.currentMovementIds(LocalDate.now()));
+        model.addAttribute("cycleMovementTransactionIds", cycles.cycleMovementIds());
         model.addAttribute("today", LocalDate.now());
         model.addAttribute("duplicatedToNextMonthIds", duplicatedToNextMonthIds);
         model.addAttribute("selectedMonth", selectedMonth);
