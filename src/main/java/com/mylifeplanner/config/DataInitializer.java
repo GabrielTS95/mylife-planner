@@ -33,6 +33,9 @@ public class DataInitializer {
                 jdbcTemplate.execute("ALTER TABLE " + table + " ALTER COLUMN user_id SET NOT NULL");
             }
             jdbcTemplate.update("UPDATE finance_transactions SET registration_date = COALESCE(transaction_date, accounting_month, CURRENT_DATE) WHERE registration_date IS NULL");
+            jdbcTemplate.update("UPDATE finance_transactions SET funding_source = 'MONTHLY_BUDGET' WHERE funding_source IS NULL");
+            jdbcTemplate.update("UPDATE finance_transactions SET automatic_carryover = FALSE WHERE automatic_carryover IS NULL");
+            jdbcTemplate.update("UPDATE scheduled_payments SET funding_source = 'MONTHLY_BUDGET' WHERE funding_source IS NULL");
             migrateLegacyTaskStatuses(jdbcTemplate);
             migrateFinanceTransactionTypes(jdbcTemplate);
             migrateCategoryOwnership(jdbcTemplate);

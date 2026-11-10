@@ -3,13 +3,14 @@
 <body>
 <div th:fragment="table(rows)" class="table-responsive">
   <table class="table align-middle mb-0 cycle-payments-table">
-    <thead><tr><th scope="col">Pago / acreedor</th><th scope="col">Vencimiento</th><th scope="col">Estado al corte</th><th scope="col" class="text-end">Importe</th><th scope="col">Acciones</th></tr></thead>
+    <thead><tr><th scope="col">Pago / acreedor</th><th scope="col">Vencimiento</th><th scope="col">Origen</th><th scope="col">Estado al corte</th><th scope="col" class="text-end">Importe</th><th scope="col">Acciones</th></tr></thead>
     <tbody>
       <tr th:each="row : ${rows}" th:with="p=${row.payment}">
         <td><strong th:text="${p.description}"></strong><small class="d-block text-muted" th:text="${p.creditor}"></small>
           <small th:if="${p.installmentCount > 1}" class="d-block text-muted" th:text="|Cuota ${p.installmentNumber} de ${p.installmentCount}|"></small>
         </td>
         <td class="text-nowrap" th:text="${#temporals.format(p.dueDate, 'dd/MM/yyyy')}"></td>
+        <td><span class="badge bg-secondary-subtle text-secondary border" th:text="${p.fundingSource.label}"></span></td>
         <td><span class="badge" th:classappend="${row.paid} ? 'bg-success-subtle text-success' : (${row.overdue} ? 'bg-danger-subtle text-danger' : 'bg-warning-subtle text-warning-emphasis')" th:text="${row.status}"></span>
           <small th:if="${p.paid}" class="d-block text-muted mt-1" th:text="|Pagado el ${#temporals.format(p.transaction.transactionDate, 'dd/MM/yyyy')}|"></small>
         </td>
@@ -34,7 +35,7 @@
           </form>
         </td>
       </tr>
-      <tr th:if="${#lists.isEmpty(rows)}"><td colspan="5" class="text-center text-muted py-4">No hay pagos en esta lista.</td></tr>
+      <tr th:if="${#lists.isEmpty(rows)}"><td colspan="6" class="text-center text-muted py-4">No hay pagos en esta lista.</td></tr>
     </tbody>
   </table>
 </div>

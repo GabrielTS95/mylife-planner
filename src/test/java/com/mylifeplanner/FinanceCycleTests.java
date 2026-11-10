@@ -5,6 +5,7 @@ import com.mylifeplanner.controller.support.PaymentForm;
 import com.mylifeplanner.model.*;
 import com.mylifeplanner.repository.*;
 import com.mylifeplanner.service.FinanceCycleService;
+import com.mylifeplanner.service.FinanceService;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -33,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class FinanceCycleTests {
     @Autowired FinanceCycleService cycles;
+    @Autowired FinanceService finances;
     @Autowired AppUserRepository users;
     @Autowired ScheduledPaymentRepository payments;
     @Autowired FinanceTransactionRepository transactions;
@@ -138,6 +140,79 @@ class FinanceCycleTests {
         assertThat(transactions.findById(txId)).isEmpty();
         assertThat(cycles.overview(today, today).available()).isEqualByComparingTo(before.available());
         assertThat(cycles.find(payment.getId()).isPaid()).isFalse();
+    }
+
+    @Test
+    void savingsFundedPaymentsAreTrackedWithoutReducingTheMonthlyBudget() throws Exception {
+        LocalDate today = LocalDate.now();
+        movement("6000", TransactionType.INGRESO, today);
+        FinanceTransaction garage = movement("5000", TransactionType.GASTO, today);
+        garage.setDescription("Cuota cochera");
+        garage.setFundingSource(FundingSource.SAVINGS);
+        transactions.saveAndFlush(garage);
+        mvc.perform(post("/finances").with(user(owner.getUsername())).with(csrf())
+                        .param("type", "INYECCION").param("amount", "8000")
+                        .param("fundingSource", "SAVINGS").param("category", "Vivienda")
+                        .param("description", "Inyección para cochera")
+                        .param("transactionDate", today.toString()).param("movementMonth", java.time.YearMonth.from(today).toString())
+                        .param("expenseIds", garage.getId().toString()))
+                .andExpect(redirectedUrl("/finances?month=" + java.time.YearMonth.from(today)));
+        authenticate(owner.getUsername());
+        FinanceTransaction injection = transactions.findAllByUserId(owner.getId()).stream()
+                .filter(tx -> tx.getType() == TransactionType.INYECCION).findFirst().orElseThrow();
+        FinanceTransaction linkedGarage = transactions.findById(garage.getId()).orElseThrow();
+        assertThat(linkedGarage.getFundingInjection().getId()).isEqualTo(injection.getId());
+        assertThat(injection.getAllocatedAmount()).isEqualByComparingTo("5000");
+        assertThat(injection.getUnallocatedAmount()).isEqualByComparingTo("3000");
+
+        assertThat(finances.totalByTypeForMonth(TransactionType.GASTO, java.time.YearMonth.from(today)))
+                .isEqualByComparingTo("5000");
+        assertThat(finances.totalExternalFundedExpensesForMonth(java.time.YearMonth.from(today)))
+                .isEqualByComparingTo("5000");
+        assertThat(finances.availableForMonth(java.time.YearMonth.from(today)))
+                .isEqualByComparingTo("6000");
+        assertThat(finances.totalInjectionsForMonth(java.time.YearMonth.from(today)))
+                .isEqualByComparingTo("8000");
+
+        PaymentForm futurePayment = form("Pago con ahorros", "700", today, 1);
+        futurePayment.setFundingSource(FundingSource.SAVINGS);
+        cycles.create(futurePayment);
+        ScheduledPayment payment = payments.findAllByUserId(owner.getId()).getFirst();
+        var pending = cycles.overview(today, today);
+        assertThat(pending.pending()).isEqualByComparingTo("700");
+        assertThat(pending.pendingFromBudget()).isZero();
+        assertThat(pending.available()).isEqualByComparingTo("6000");
+
+        cycles.pay(payment.getId(), today);
+        var paid = cycles.overview(today, today);
+        assertThat(paid.expenses()).isEqualByComparingTo("5700");
+        assertThat(paid.externalFundedExpenses()).isEqualByComparingTo("5700");
+        assertThat(paid.available()).isEqualByComparingTo("6000");
+        assertThat(cycles.find(payment.getId()).getTransaction().getFundingSource()).isEqualTo(FundingSource.SAVINGS);
+    }
+
+    @Test
+    void carriesAvailableBalanceOnceAndKeepsItSeparateFromIncome() throws Exception {
+        java.time.YearMonth source = java.time.YearMonth.from(LocalDate.now()).plusMonths(3);
+        movement("2400", TransactionType.INGRESO, source.atDay(5));
+        movement("900", TransactionType.GASTO, source.atDay(10));
+
+        mvc.perform(post("/finances/carryover").with(user(owner.getUsername())).with(csrf())
+                        .param("month", source.toString()))
+                .andExpect(redirectedUrl("/finances?month=" + source.plusMonths(1)))
+                .andExpect(flash().attributeExists("actionSuccess"));
+        authenticate(owner.getUsername());
+        FinanceTransaction carryover = finances.findCarryoverFrom(source).orElseThrow();
+        FinanceTransaction repeated = finances.carryOverAvailable(source, false);
+
+        assertThat(repeated.getId()).isEqualTo(carryover.getId());
+        assertThat(carryover.getType()).isEqualTo(TransactionType.ARRASTRE);
+        assertThat(carryover.getAmount()).isEqualByComparingTo("1500");
+        assertThat(carryover.getMovementMonth()).isEqualTo(source.plusMonths(1).toString());
+        assertThat(finances.availableForMonth(source.plusMonths(1))).isEqualByComparingTo("1500");
+        assertThat(finances.totalByTypeForMonth(TransactionType.INGRESO, source.plusMonths(1))).isZero();
+        assertThat(transactions.findAllByUserId(owner.getId()).stream()
+                .filter(tx -> tx.getType() == TransactionType.ARRASTRE)).hasSize(1);
     }
 
     @Test

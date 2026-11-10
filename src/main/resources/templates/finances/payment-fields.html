@@ -24,6 +24,13 @@
     <label for="paymentDueDate" class="form-label">Vencimiento</label>
     <input id="paymentDueDate" th:field="*{dueDate}" type="date" class="form-control" required>
   </div>
+  <div class="col-12">
+    <label for="paymentFundingSource" class="form-label">¿De dónde saldrá el dinero?</label>
+    <select id="paymentFundingSource" th:field="*{fundingSource}" class="form-select" required>
+      <option th:each="source : ${fundingSources}" th:value="${source}" th:text="${source.label}"></option>
+    </select>
+    <p class="form-text mb-0">Si eliges ahorros u otro fondo, el pago se controlará sin reducir el presupuesto mensual.</p>
+  </div>
 </div>
 </body>
 </html>

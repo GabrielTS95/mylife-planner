@@ -1,5 +1,6 @@
 package com.mylifeplanner.controller.support;
 
+import com.mylifeplanner.model.FundingSource;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -15,6 +16,8 @@ public class PaymentForm {
     @NotNull(message = "Indica la fecha de vencimiento.")
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
     private LocalDate dueDate;
+    @NotNull(message = "Indica de dónde saldrá el dinero.")
+    private FundingSource fundingSource = FundingSource.MONTHLY_BUDGET;
     @Min(1) @Max(120)
     private int installments = 1;
 
@@ -26,6 +29,8 @@ public class PaymentForm {
     public void setAmount(BigDecimal value) { amount = value; }
     public LocalDate getDueDate() { return dueDate; }
     public void setDueDate(LocalDate value) { dueDate = value; }
+    public FundingSource getFundingSource() { return fundingSource; }
+    public void setFundingSource(FundingSource value) { fundingSource = value; }
     public int getInstallments() { return installments; }
     public void setInstallments(int value) { installments = value; }
 }

@@ -36,7 +36,8 @@ public class FinanceCycleService {
     public record Cycle(LocalDate start, LocalDate end, LocalDate nextPayday) {}
     public record PaymentRow(ScheduledPayment payment, String status, boolean paid, boolean overdue) {}
     public record Overview(Cycle cycle, LocalDate asOf, BigDecimal carriedBalance, BigDecimal income,
-                           BigDecimal expenses, BigDecimal savings, BigDecimal balance, BigDecimal pending,
+                           BigDecimal expenses, BigDecimal externalFundedExpenses, BigDecimal savings,
+                           BigDecimal balance, BigDecimal pending, BigDecimal pendingFromBudget,
                            BigDecimal overdue, BigDecimal available, long undatedCount,
                            List<PaymentRow> payments, List<PaymentRow> upcoming, List<FinanceTransaction> movements) {}
 
@@ -78,13 +79,20 @@ public class FinanceCycleService {
         // Only dated, received/paid movements contribute to cash. Future and undated entries do not.
         List<FinanceTransaction> realized = all.stream()
                 .filter(tx -> tx.getTransactionDate() != null && !tx.getTransactionDate().isAfter(cutoff))
+                .filter(tx -> tx.getType() == TransactionType.INGRESO
+                        || tx.getType() == TransactionType.GASTO
+                        || tx.getType() == TransactionType.AHORRO)
                 .filter(tx -> openingDate == null || !tx.getTransactionDate().isBefore(openingDate))
                 .toList();
         BigDecimal carried = openingDate == null || !openingDate.isAfter(cutoff)
                 ? user.getFinanceOpeningBalance() : BigDecimal.ZERO;
         for (FinanceTransaction tx : realized) {
             if (tx.getTransactionDate().isBefore(cycle.start())) {
-                carried = carried.add(tx.getType() == TransactionType.INGRESO ? tx.getAmount() : tx.getAmount().negate());
+                if (tx.getType() == TransactionType.INGRESO) {
+                    carried = carried.add(tx.getAmount());
+                } else if (tx.getType() == TransactionType.AHORRO || tx.isAffectsMonthlyBudget()) {
+                    carried = carried.subtract(tx.getAmount());
+                }
             }
         }
         List<FinanceTransaction> movements = realized.stream()
@@ -94,8 +102,12 @@ public class FinanceCycleService {
                 .toList();
         BigDecimal income = total(movements, TransactionType.INGRESO);
         BigDecimal expenses = total(movements, TransactionType.GASTO);
+        BigDecimal budgetExpenses = movements.stream()
+                .filter(tx -> tx.getType() == TransactionType.GASTO && tx.isAffectsMonthlyBudget())
+                .map(FinanceTransaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal externalFundedExpenses = expenses.subtract(budgetExpenses);
         BigDecimal savings = total(movements, TransactionType.AHORRO);
-        BigDecimal balance = carried.add(income).subtract(expenses).subtract(savings);
+        BigDecimal balance = carried.add(income).subtract(budgetExpenses).subtract(savings);
         List<ScheduledPayment> allPayments = payments.findAllByUserId(user.getId()).stream()
                 .sorted(Comparator.comparing(ScheduledPayment::getDueDate).thenComparing(ScheduledPayment::getId))
                 .toList();
@@ -106,13 +118,17 @@ public class FinanceCycleService {
                 .map(p -> row(p, cutoff)).toList();
         BigDecimal pending = rows.stream().filter(p -> !p.paid()).map(p -> p.payment().getAmount())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal pendingFromBudget = rows.stream()
+                .filter(p -> !p.paid() && p.payment().getFundingSource().isAffectsMonthlyBudget())
+                .map(p -> p.payment().getAmount()).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal overdue = rows.stream().filter(PaymentRow::overdue).map(p -> p.payment().getAmount())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         List<PaymentRow> upcoming = allPayments.stream()
                 .filter(p -> p.getDueDate().isAfter(cycle.end()) && !p.isPaidOn(cutoff))
                 .map(p -> row(p, cutoff)).toList();
-        return new Overview(cycle, cutoff, carried, income, expenses, savings, balance, pending, overdue,
-                balance.subtract(pending), all.stream().filter(t -> t.getTransactionDate() == null).count(),
+        return new Overview(cycle, cutoff, carried, income, expenses, externalFundedExpenses, savings,
+                balance, pending, pendingFromBudget, overdue, balance.subtract(pendingFromBudget),
+                all.stream().filter(t -> t.getTransactionDate() == null).count(),
                 rows, upcoming, movements);
     }
 
@@ -165,6 +181,7 @@ public class FinanceCycleService {
         payment.setCreditor(form.getCreditor().strip());
         payment.setAmount(form.getAmount());
         payment.setDueDate(form.getDueDate());
+        payment.setFundingSource(form.getFundingSource());
     }
 
     @Transactional
@@ -198,6 +215,7 @@ public class FinanceCycleService {
                 + (payment.getInstallmentCount() > 1 ? " · Cuota " + payment.getInstallmentNumber()
                 + "/" + payment.getInstallmentCount() : ""));
         tx.setCategory("Deudas y pagos");
+        tx.setFundingSource(payment.getFundingSource());
         tx.setTransactionDate(date);
         tx.setAccountingMonth(date.withDayOfMonth(1));
         payment.setTransaction(transactions.save(tx));

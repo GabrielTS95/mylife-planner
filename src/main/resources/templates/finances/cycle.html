@@ -38,15 +38,16 @@
   </section>
 
   <section class="metrics-grid-4 mb-3" aria-label="Resumen del ciclo">
-    <div class="stat-card-modern"><div class="stat-icon-wrapper icon-balance"><i class="bi bi-wallet2"></i></div><div class="stat-info"><span>Saldo al corte</span><strong>S/ <span th:text="${#numbers.formatDecimal(overview.balance, 1, 2)}"></span></strong><small>Después de gastos y ahorros</small></div></div>
-    <div class="stat-card-modern"><div class="stat-icon-wrapper icon-saving"><i class="bi bi-calendar-check"></i></div><div class="stat-info"><span>Pagos pendientes</span><strong>S/ <span th:text="${#numbers.formatDecimal(overview.pending, 1, 2)}"></span></strong><small>Hasta el próximo cobro</small></div></div>
+    <div class="stat-card-modern"><div class="stat-icon-wrapper icon-balance"><i class="bi bi-wallet2"></i></div><div class="stat-info"><span>Saldo del presupuesto</span><strong>S/ <span th:text="${#numbers.formatDecimal(overview.balance, 1, 2)}"></span></strong><small>Después de gastos del presupuesto y ahorros</small></div></div>
+    <div class="stat-card-modern"><div class="stat-icon-wrapper icon-saving"><i class="bi bi-calendar-check"></i></div><div class="stat-info"><span>Pagos pendientes</span><strong>S/ <span th:text="${#numbers.formatDecimal(overview.pending, 1, 2)}"></span></strong><small>S/ <span th:text="${#numbers.formatDecimal(overview.pendingFromBudget, 1, 2)}"></span> comprometen el presupuesto</small></div></div>
     <div class="stat-card-modern"><div class="stat-icon-wrapper icon-expense"><i class="bi bi-exclamation-circle"></i></div><div class="stat-info"><span>De ellos, vencidos</span><strong>S/ <span th:text="${#numbers.formatDecimal(overview.overdue, 1, 2)}"></span></strong><small>Incluidos en pendientes</small></div></div>
-    <div class="stat-card-modern cycle-available"><div class="stat-icon-wrapper icon-income"><i class="bi bi-check2-circle"></i></div><div class="stat-info"><span>Disponible tras compromisos</span><strong th:classappend="${overview.available.signum() < 0} ? 'text-danger' : ''">S/ <span th:text="${#numbers.formatDecimal(overview.available, 1, 2)}"></span></strong><small>Saldo − pagos pendientes</small></div></div>
+    <div class="stat-card-modern cycle-available"><div class="stat-icon-wrapper icon-income"><i class="bi bi-check2-circle"></i></div><div class="stat-info"><span>Disponible tras compromisos</span><strong th:classappend="${overview.available.signum() < 0} ? 'text-danger' : ''">S/ <span th:text="${#numbers.formatDecimal(overview.available, 1, 2)}"></span></strong><small>Saldo − pendientes del presupuesto</small></div></div>
   </section>
   <div class="cycle-calculation mb-4">
     <span>Saldo inicial / arrastre: <strong>S/ <span th:text="${#numbers.formatDecimal(overview.carriedBalance, 1, 2)}"></span></strong></span>
     <span>+ Ingresos: <strong>S/ <span th:text="${#numbers.formatDecimal(overview.income, 1, 2)}"></span></strong></span>
     <span>− Gastos: <strong>S/ <span th:text="${#numbers.formatDecimal(overview.expenses, 1, 2)}"></span></strong></span>
+    <span th:if="${overview.externalFundedExpenses.signum() > 0}">De ellos, otros fondos: <strong>S/ <span th:text="${#numbers.formatDecimal(overview.externalFundedExpenses, 1, 2)}"></span></strong></span>
     <span>− Ahorros: <strong>S/ <span th:text="${#numbers.formatDecimal(overview.savings, 1, 2)}"></span></strong></span>
   </div>
   <p class="text-muted small">Corte al <strong th:text="${#temporals.format(overview.asOf, 'dd/MM/yyyy')}"></strong>. Solo se suman movimientos con fecha de pago hasta ese día. Registra el sueldo como ingreso cuando lo recibas; el día de cobro no crea ingresos automáticamente. Los pagos vencidos de ciclos anteriores siguen reservados.</p>
@@ -101,9 +102,9 @@
 
   <details class="card-panel cycle-details mb-4">
     <summary>Movimientos que forman el saldo de este ciclo <span class="badge bg-secondary ms-2" th:text="${#lists.size(overview.movements)}"></span></summary>
-    <div class="table-responsive"><table class="table mb-0"><thead><tr><th>Fecha</th><th>Detalle</th><th>Tipo</th><th class="text-end">Importe</th></tr></thead><tbody>
-      <tr th:each="tx : ${overview.movements}"><td th:text="${#temporals.format(tx.transactionDate, 'dd/MM/yyyy')}"></td><td th:text="${tx.description}"></td><td th:text="${tx.type.label}"></td><td class="text-end text-nowrap">S/ <span th:text="${#numbers.formatDecimal(tx.amount, 1, 2)}"></span></td></tr>
-      <tr th:if="${#lists.isEmpty(overview.movements)}"><td colspan="4" class="text-muted text-center py-4">Aún no hay movimientos con fecha de pago en este ciclo.</td></tr>
+    <div class="table-responsive"><table class="table mb-0"><thead><tr><th>Fecha</th><th>Detalle</th><th>Tipo</th><th>Origen</th><th class="text-end">Importe</th></tr></thead><tbody>
+      <tr th:each="tx : ${overview.movements}"><td th:text="${#temporals.format(tx.transactionDate, 'dd/MM/yyyy')}"></td><td th:text="${tx.description}"></td><td th:text="${tx.type.label}"></td><td th:text="${tx.type.name() == 'GASTO' ? tx.fundingSource.label : '—'}"></td><td class="text-end text-nowrap">S/ <span th:text="${#numbers.formatDecimal(tx.amount, 1, 2)}"></span></td></tr>
+      <tr th:if="${#lists.isEmpty(overview.movements)}"><td colspan="5" class="text-muted text-center py-4">Aún no hay movimientos con fecha de pago en este ciclo.</td></tr>
     </tbody></table></div>
   </details>
 </main>

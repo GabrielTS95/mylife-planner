@@ -3,7 +3,9 @@ package com.mylifeplanner.model;
 public enum TransactionType {
     INGRESO("Ingreso", "income"),
     GASTO("Gasto", "expense"),
-    AHORRO("Ahorro", "saving");
+    AHORRO("Ahorro", "saving"),
+    INYECCION("Inyección de fondos", "funding"),
+    ARRASTRE("Saldo trasladado", "carryover");
 
     private final String label;
     private final String cssClass;

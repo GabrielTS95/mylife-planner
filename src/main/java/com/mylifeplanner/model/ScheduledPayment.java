@@ -20,6 +20,9 @@ public class ScheduledPayment extends UserOwnedEntity {
     private LocalDate dueDate;
     private int installmentNumber;
     private int installmentCount;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "funding_source")
+    private FundingSource fundingSource = FundingSource.MONTHLY_BUDGET;
     @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "transaction_id", unique = true)
     private FinanceTransaction transaction;
@@ -37,6 +40,12 @@ public class ScheduledPayment extends UserOwnedEntity {
     public void setInstallmentNumber(int value) { installmentNumber = value; }
     public int getInstallmentCount() { return installmentCount; }
     public void setInstallmentCount(int value) { installmentCount = value; }
+    public FundingSource getFundingSource() {
+        return fundingSource == null ? FundingSource.MONTHLY_BUDGET : fundingSource;
+    }
+    public void setFundingSource(FundingSource value) {
+        fundingSource = value == null ? FundingSource.MONTHLY_BUDGET : value;
+    }
     public FinanceTransaction getTransaction() { return transaction; }
     public void setTransaction(FinanceTransaction value) { transaction = value; }
     public boolean isPaid() { return transaction != null; }

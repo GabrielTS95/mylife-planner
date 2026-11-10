@@ -29,7 +29,7 @@
         </span>
       </div>
       <h1><i class="bi bi-receipt text-success"></i> Movimientos</h1>
-      <p>Registra ingresos, gastos y ahorros para llevar un control financiero exacto.</p>
+      <p>Registra ingresos, gastos, ahorros, inyecciones y saldos trasladados con trazabilidad.</p>
     </div>
     <div class="home-topbar-actions">
       <a th:href="@{/finances/cycle}" class="btn btn-outline-success rounded-pill"><i class="bi bi-calendar2-range me-1"></i>Mi ciclo y pagos</a>
@@ -77,7 +77,7 @@
       <div class="stat-info">
         <span>Gastos del mes</span>
         <strong>S/ <span th:text="${#numbers.formatDecimal(monthExpenses, 1, 2)}">0.00</span></strong>
-        <small>Mes ant: S/ <span th:text="${#numbers.formatDecimal(lastMonthExpenses, 1, 2)}">0.00</span></small>
+        <small>Presupuesto: S/ <span th:text="${#numbers.formatDecimal(monthBudgetExpenses, 1, 2)}">0.00</span> · Otros fondos: S/ <span th:text="${#numbers.formatDecimal(monthExternalFundedExpenses, 1, 2)}">0.00</span></small>
       </div>
     </div>
 
@@ -89,7 +89,7 @@
       <div class="stat-info">
         <span>Ahorros del mes</span>
         <strong>S/ <span th:text="${#numbers.formatDecimal(monthSavings, 1, 2)}">0.00</span></strong>
-        <small>Fondo para objetivos</small>
+        <small>Inyecciones registradas: S/ <span th:text="${#numbers.formatDecimal(monthInjections, 1, 2)}">0.00</span></small>
       </div>
     </div>
 
@@ -99,9 +99,9 @@
         <i class="bi bi-safe2-fill"></i>
       </div>
       <div class="stat-info">
-        <span>Disponible Neto</span>
+        <span>Disponible del presupuesto</span>
         <strong>S/ <span th:text="${#numbers.formatDecimal(monthAvailable, 1, 2)}">0.00</span></strong>
-        <small>Ingresos - Gastos - Ahorros</small>
+        <small>Incluye S/ <span th:text="${#numbers.formatDecimal(monthCarryover, 1, 2)}">0.00</span> trasladados del mes anterior</small>
       </div>
     </div>
   </section>
@@ -117,6 +117,15 @@
       <button type="button" class="btn btn-sm btn-dark rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#newTransactionModal">
         <i class="bi bi-plus-lg me-1"></i>Nuevo Movimiento
       </button>
+      <form method="post" th:action="@{/finances/carryover}" class="m-0" data-confirm-action="carryover">
+        <input type="hidden" name="month" th:value="${selectedMonth}">
+        <button type="submit" class="btn btn-sm btn-outline-success rounded-pill px-3"
+                th:disabled="${carryoverCreated || monthAvailable.signum() <= 0}"
+                th:title="${carryoverCreated} ? 'Este disponible ya fue trasladado' : (${monthAvailable.signum() <= 0} ? 'No hay saldo positivo para trasladar' : 'Registrar ahora el disponible en el mes siguiente')">
+          <i class="bi bi-box-arrow-right me-1"></i>
+          <span th:text="${carryoverCreated} ? 'Disponible trasladado' : 'Trasladar a ' + nextMonth">Trasladar disponible</span>
+        </button>
+      </form>
       <button type="button" class="btn btn-sm btn-outline-dark rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#newCategoryModal">
         <i class="bi bi-tag me-1" aria-hidden="true"></i>Nueva Categoría
       </button>
@@ -133,6 +142,7 @@
           <th>Detalle</th>
           <th>Categoría</th>
           <th>Tipo</th>
+          <th>Origen de fondos</th>
           <th class="text-end" id="sortAmountHeader" style="cursor: pointer; user-select: none;" title="Ordenar por monto (mayor a menor o menor a mayor)">
             <span class="d-inline-flex align-items-center gap-1 justify-content-end">
               Monto
@@ -148,23 +158,44 @@
           <td class="text-center text-muted fw-semibold row-number" th:text="${iterStat.count}">1</td>
           <td th:text="${tx.registrationDate != null ? tx.registrationDate : '-'}">-</td>
           <td th:text="${tx.transactionDate != null ? tx.transactionDate : '-'}">-</td>
-          <td><strong th:text="${tx.description != null && !tx.description.isBlank() ? tx.description : 'Sin descripción'}"></strong></td>
+          <td>
+            <strong th:text="${tx.description != null && !tx.description.isBlank() ? tx.description : 'Sin descripción'}"></strong>
+            <div th:if="${tx.type.name() == 'INYECCION'}" class="small text-muted mt-1">
+              <span>Canalizado: S/ <span th:text="${#numbers.formatDecimal(tx.allocatedAmount, 1, 2)}"></span></span>
+              <span> · Sin asignar: S/ <span th:text="${#numbers.formatDecimal(tx.unallocatedAmount, 1, 2)}"></span></span>
+              <ul th:if="${!#lists.isEmpty(tx.fundedExpenses)}" class="mb-0 ps-3">
+                <li th:each="expense : ${tx.fundedExpenses}"
+                    th:text="|${expense.description != null ? expense.description : 'Gasto'} · S/ ${#numbers.formatDecimal(expense.amount, 1, 2)}|"></li>
+              </ul>
+            </div>
+            <small th:if="${tx.fundingInjection != null}" class="d-block text-info-emphasis mt-1"
+                   th:text="|Canalizado por: ${tx.fundingInjection.description != null ? tx.fundingInjection.description : 'Inyección de fondos'}|"></small>
+          </td>
           <td><span class="badge bg-light text-dark border" th:text="${tx.category}"></span></td>
           <td>
             <span class="badge"
-                  th:classappend="${tx.type.name() == 'INGRESO'} ? 'bg-success-subtle text-success border border-success' : (${tx.type.name() == 'GASTO'} ? 'bg-danger-subtle text-danger border border-danger' : 'bg-primary-subtle text-primary border border-primary')"
+                  th:classappend="${tx.type.name() == 'INGRESO'} ? 'bg-success-subtle text-success border border-success' : (${tx.type.name() == 'GASTO'} ? 'bg-danger-subtle text-danger border border-danger' : (${tx.type.name() == 'INYECCION'} ? 'bg-info-subtle text-info-emphasis border border-info' : (${tx.type.name() == 'ARRASTRE'} ? 'bg-secondary-subtle text-secondary border' : 'bg-primary-subtle text-primary border border-primary')))"
                   th:text="${tx.type.label}"></span>
           </td>
+          <td>
+            <span th:if="${tx.type.name() == 'GASTO' || tx.type.name() == 'INYECCION'}" class="badge bg-secondary-subtle text-secondary border"
+                  th:text="${tx.fundingSource.label}"></span>
+            <small th:if="${tx.type.name() == 'GASTO' && !tx.affectsMonthlyBudget}" class="d-block text-muted mt-1">No descuenta presupuesto</small>
+            <span th:unless="${tx.type.name() == 'GASTO' || tx.type.name() == 'INYECCION'}" class="text-muted">—</span>
+          </td>
           <td class="text-end fw-bold"
-              th:classappend="${tx.type.name() == 'INGRESO'} ? 'text-success' : (${tx.type.name() == 'GASTO'} ? 'text-danger' : 'text-primary')">
-            <span th:text="${tx.type.name() == 'INGRESO' ? '+' : (tx.type.name() == 'GASTO' ? '-' : '')}"></span>S/ <span th:text="${#numbers.formatDecimal(tx.amount, 1, 2)}"></span>
+              th:classappend="${tx.type.name() == 'INGRESO'} ? 'text-success' : (${tx.type.name() == 'GASTO'} ? 'text-danger' : (${tx.type.name() == 'ARRASTRE'} ? 'text-secondary' : 'text-primary'))">
+            <span th:text="${tx.type.name() == 'INGRESO' || tx.type.name() == 'INYECCION' || tx.type.name() == 'ARRASTRE' ? '+' : (tx.type.name() == 'GASTO' ? '-' : '')}"></span>S/ <span th:text="${#numbers.formatDecimal(tx.amount, 1, 2)}"></span>
+            <small th:if="${tx.type.name() == 'GASTO' && !tx.affectsMonthlyBudget}" class="d-block fw-normal text-muted">Fuera del presupuesto</small>
           </td>
           <td class="text-end text-nowrap">
             <a th:if="${linkedPaymentTransactionIds.contains(tx.id)}" th:href="@{/finances/cycle(date=${tx.transactionDate})}" class="btn btn-sm btn-outline-success">Gestionar pago en Mi ciclo</a>
-            <div th:unless="${linkedPaymentTransactionIds.contains(tx.id)}" class="d-inline-flex align-items-center gap-2">
+            <span th:if="${tx.carryover}" class="badge bg-secondary-subtle text-secondary border"
+                  th:text="${tx.automaticCarryover ? 'Traslado automático' : 'Traslado manual'}"></span>
+            <div th:if="${!linkedPaymentTransactionIds.contains(tx.id) && !tx.carryover}" class="d-inline-flex align-items-center gap-2">
               <button type="button" class="btn btn-sm btn-outline-primary"
                       data-bs-toggle="modal" data-bs-target="#newTransactionModal"
-                      th:attr="data-edit-url=@{/finances/{id}/edit(id=${tx.id})},data-type=${tx.type.name()},data-amount=${tx.amount},data-category=${tx.category},data-bank=${tx.bank},data-description=${tx.description},data-date=${tx.transactionDate},data-month=${tx.movementMonth}">
+                      th:attr="data-edit-url=@{/finances/{id}/edit(id=${tx.id})},data-id=${tx.id},data-type=${tx.type.name()},data-amount=${tx.amount},data-category=${tx.category},data-bank=${tx.bank},data-funding-source=${tx.fundingSource.name()},data-funded-expense-ids=${tx.fundedExpenseIdsCsv},data-description=${tx.description},data-date=${tx.transactionDate},data-month=${tx.movementMonth}">
                 <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>Editar
               </button>
               <button type="button" class="btn btn-sm btn-outline-secondary"
@@ -184,7 +215,7 @@
           </td>
         </tr>
         <tr th:if="${#lists.isEmpty(transactions)}">
-          <td colspan="8" class="text-center text-muted py-4">No hay movimientos en este mes.</td>
+          <td colspan="9" class="text-center text-muted py-4">No hay movimientos en este mes.</td>
         </tr>
         </tbody>
       </table>
@@ -326,7 +357,7 @@
         <div class="modal-header">
           <div>
             <h2 class="modal-title fs-5" id="newTransactionModalLabel"><i class="bi bi-plus-circle-fill text-success me-2"></i>Nuevo Movimiento</h2>
-            <p id="transactionModalSubtitle" class="modal-subtitle mb-0">Registra un ingreso, gasto o ahorro</p>
+            <p id="transactionModalSubtitle" class="modal-subtitle mb-0">Registra un ingreso, gasto, ahorro o inyección</p>
           </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
         </div>
@@ -343,6 +374,31 @@
               <span class="input-group-text">S/</span>
               <input id="amount" class="form-control" type="number" step="0.01" min="0.01" th:field="*{amount}" placeholder="0.00" required>
             </div>
+          </div>
+          <div id="fundingSourceField">
+            <label for="fundingSource" class="form-label fw-bold small text-muted">Origen de los fondos</label>
+            <select id="fundingSource" class="form-select" th:field="*{fundingSource}">
+              <option th:each="source : ${fundingSources}" th:value="${source}" th:text="${source.label}"></option>
+            </select>
+            <p class="small text-muted mb-0 mt-2">Las inyecciones y los gastos pagados con fondos externos quedan registrados sin alterar el disponible mensual.</p>
+          </div>
+          <div id="injectionExpensesField" hidden>
+            <label class="form-label fw-bold small text-muted">Canalizar hacia gastos</label>
+            <p class="small text-muted mb-2">Selecciona los gastos externos que cubrirá esta inyección. Deben pertenecer al mismo mes y no superar el monto inyectado.</p>
+            <div id="injectionExpenseOptions" class="border rounded-3 p-2 vstack gap-2" style="max-height: 220px; overflow-y: auto;">
+              <label th:each="expense : ${possibleFundingExpenses}" class="form-check border rounded-2 p-2 ps-5 mb-0 injection-expense-option"
+                     th:attr="data-month=${expense.movementMonth},data-linked-injection=${expense.fundingInjection != null ? expense.fundingInjection.id : ''},data-amount=${expense.amount}">
+                <input class="form-check-input injection-expense-check" type="checkbox" name="expenseIds" th:value="${expense.id}">
+                <span class="d-block fw-semibold" th:text="${expense.description != null && !expense.description.isBlank() ? expense.description : 'Gasto sin descripción'}"></span>
+                <small class="text-muted">
+                  S/ <span th:text="${#numbers.formatDecimal(expense.amount, 1, 2)}"></span>
+                  · <span th:text="${expense.category}"></span>
+                  · <span th:text="${expense.transactionDate != null ? expense.transactionDate : expense.movementMonth}"></span>
+                </small>
+              </label>
+              <p id="noInjectionExpenses" class="text-muted small text-center py-2 mb-0">No hay gastos externos disponibles en este mes.</p>
+            </div>
+            <p id="injectionAllocationSummary" class="small fw-semibold mt-2 mb-0">Seleccionado: S/ 0.00</p>
           </div>
           <div>
             <label for="category" class="form-label fw-bold small text-muted">Categoría</label>
@@ -426,6 +482,49 @@
   const paymentCheckbox = document.getElementById('hasPaymentDate');
   const paymentInput = document.getElementById('transactionDate');
   const movementMonthInput = document.getElementById('movementMonth');
+  const typeSelect = document.getElementById('type');
+  const fundingSourceSelect = document.getElementById('fundingSource');
+  const amountInput = document.getElementById('amount');
+  const injectionOptions = Array.from(document.querySelectorAll('.injection-expense-option'));
+  let editingTransactionId = '';
+  function updateInjectionExpenses() {
+    const isInjection = typeSelect.value === 'INYECCION';
+    const selectedMonth = movementMonthInput.value;
+    let visible = 0;
+    let allocated = 0;
+    document.getElementById('injectionExpensesField').hidden = !isInjection;
+    injectionOptions.forEach(option => {
+      const checkbox = option.querySelector('.injection-expense-check');
+      const linkedInjection = option.dataset.linkedInjection || '';
+      const available = !linkedInjection || linkedInjection === editingTransactionId;
+      const show = isInjection && option.dataset.month === selectedMonth && available;
+      option.hidden = !show;
+      checkbox.disabled = !show;
+      if (!show) checkbox.checked = false;
+      if (show) {
+        visible++;
+        if (checkbox.checked) allocated += Number(option.dataset.amount || 0);
+      }
+    });
+    document.getElementById('noInjectionExpenses').hidden = visible > 0;
+    document.getElementById('injectionAllocationSummary').textContent =
+      `Seleccionado: S/ ${allocated.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const injected = Number(amountInput.value || 0);
+    amountInput.setCustomValidity(isInjection && allocated > injected
+      ? 'Los gastos seleccionados superan el monto de la inyección.' : '');
+  }
+  function updateFundingSourceField() {
+    const isExpense = typeSelect.value === 'GASTO';
+    const isInjection = typeSelect.value === 'INYECCION';
+    const usesFundingSource = isExpense || isInjection;
+    const monthlyOption = fundingSourceSelect.querySelector('option[value="MONTHLY_BUDGET"]');
+    document.getElementById('fundingSourceField').hidden = !usesFundingSource;
+    fundingSourceSelect.disabled = !usesFundingSource;
+    monthlyOption.disabled = isInjection;
+    if (isInjection && fundingSourceSelect.value === 'MONTHLY_BUDGET') fundingSourceSelect.value = 'SAVINGS';
+    if (!usesFundingSource) fundingSourceSelect.value = 'MONTHLY_BUDGET';
+    updateInjectionExpenses();
+  }
   function updatePaymentField() {
     const enabled = paymentCheckbox.checked;
     if (enabled && !paymentInput.value) {
@@ -439,11 +538,17 @@
     document.getElementById('movementMonthField').hidden = enabled;
     movementMonthInput.disabled = enabled;
     movementMonthInput.required = !enabled;
+    updateInjectionExpenses();
   }
   paymentCheckbox.addEventListener('change', updatePaymentField);
   paymentInput.addEventListener('change', () => {
     if (paymentInput.value) movementMonthInput.value = paymentInput.value.slice(0, 7);
+    updateInjectionExpenses();
   });
+  movementMonthInput.addEventListener('change', updateInjectionExpenses);
+  amountInput.addEventListener('input', updateInjectionExpenses);
+  injectionOptions.forEach(option => option.querySelector('.injection-expense-check')
+    .addEventListener('change', updateInjectionExpenses));
   document.getElementById('duplicateTransactionModal').addEventListener('show.bs.modal', event => {
     const button = event.relatedTarget;
     document.getElementById('duplicateTransactionForm').action = button.dataset.url;
@@ -462,15 +567,23 @@
     if (!isBank) bankSelect.value = '';
   }
   document.getElementById('category').addEventListener('change', updateBankField);
+  typeSelect.addEventListener('change', updateFundingSourceField);
   transactionModal.addEventListener('show.bs.modal', event => {
     const button = event.relatedTarget;
     const editing = Boolean(button && button.dataset.editUrl);
+    editingTransactionId = editing ? button.dataset.id || '' : '';
     transactionForm.reset();
+    const fundedExpenseIds = new Set(editing && button.dataset.fundedExpenseIds
+      ? button.dataset.fundedExpenseIds.split(',') : []);
+    injectionOptions.forEach(option => {
+      option.querySelector('.injection-expense-check').checked = fundedExpenseIds.has(
+        option.querySelector('.injection-expense-check').value);
+    });
     transactionForm.querySelectorAll('option[data-custom-category]').forEach(option => option.remove());
     transactionForm.action = editing ? button.dataset.editUrl : createTransactionUrl;
     document.getElementById('newTransactionModalLabel').textContent = editing ? 'Editar Movimiento' : 'Nuevo Movimiento';
     document.getElementById('transactionModalSubtitle').textContent = editing
-      ? 'Actualiza los datos del movimiento' : 'Registra un ingreso, gasto o ahorro';
+      ? 'Actualiza los datos del movimiento' : 'Registra un ingreso, gasto, ahorro o inyección';
     if (editing) {
       const category = document.getElementById('category');
       const value = button.dataset.category || '';
@@ -481,6 +594,7 @@
       }
       document.getElementById('type').value = button.dataset.type;
       document.getElementById('amount').value = button.dataset.amount;
+      fundingSourceSelect.value = button.dataset.fundingSource || 'MONTHLY_BUDGET';
       category.value = value;
       bankSelect.value = button.dataset.bank || '';
       document.getElementById('description').value = button.dataset.description || '';
@@ -489,7 +603,9 @@
       movementMonthInput.value = button.dataset.month;
     }
     updateBankField();
+    updateFundingSourceField();
     updatePaymentField();
+    updateInjectionExpenses();
   });
 
   // Ordenamiento de montos (mayor a menor y menor a mayor)

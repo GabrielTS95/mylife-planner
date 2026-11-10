@@ -3,7 +3,7 @@
 <body>
 <div th:fragment="alerts">
   <link rel="stylesheet" th:href="@{/css/alerts.css}">
-  <div id="actionFeedback" hidden th:attr="data-success=${actionSuccess}"></div>
+  <div id="actionFeedback" hidden th:attr="data-success=${actionSuccess},data-error=${actionError}"></div>
   <script th:src="@{/js/alerts.js}"></script>
 </div>
 </body>

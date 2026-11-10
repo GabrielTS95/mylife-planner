@@ -124,7 +124,7 @@ public class DashboardController {
         BigDecimal ingresos = financeService.totalByTypeInRange(TransactionType.INGRESO, calcStart, calcEnd);
         BigDecimal gastos = financeService.totalByTypeInRange(TransactionType.GASTO, calcStart, calcEnd);
         BigDecimal ahorros = financeService.totalByTypeInRange(TransactionType.AHORRO, calcStart, calcEnd);
-        BigDecimal balance = ingresos.subtract(gastos).subtract(ahorros);
+        BigDecimal balance = financeService.availableInRange(calcStart, calcEnd);
 
         List<FinanceTransaction> periodTransactions = financeService.findByDateRange(calcStart, calcEnd);
         long incomeCount = financeService.countByTypeInRange(TransactionType.INGRESO, calcStart, calcEnd);

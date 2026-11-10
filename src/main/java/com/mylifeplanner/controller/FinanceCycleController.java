@@ -2,6 +2,7 @@ package com.mylifeplanner.controller;
 
 import com.mylifeplanner.controller.support.CycleSettingsForm;
 import com.mylifeplanner.controller.support.PaymentForm;
+import com.mylifeplanner.model.FundingSource;
 import com.mylifeplanner.service.AccountService;
 import com.mylifeplanner.service.FinanceCycleService;
 import jakarta.validation.Valid;
@@ -33,6 +34,7 @@ public class FinanceCycleController {
         model.addAttribute("overview", overview);
         model.addAttribute("today", today);
         model.addAttribute("payday", user.getPayday());
+        model.addAttribute("fundingSources", FundingSource.values());
         model.addAttribute("historical", overview.cycle().end().isBefore(today));
         model.addAttribute("activePage", "cycle");
         if (!model.containsAttribute("paymentForm")) model.addAttribute("paymentForm", new PaymentForm());
@@ -75,9 +77,11 @@ public class FinanceCycleController {
             form.setCreditor(payment.getCreditor());
             form.setAmount(payment.getAmount());
             form.setDueDate(payment.getDueDate());
+            form.setFundingSource(payment.getFundingSource());
             model.addAttribute("paymentForm", form);
         }
         model.addAttribute("paymentId", id);
+        model.addAttribute("fundingSources", FundingSource.values());
         model.addAttribute("activePage", "cycle");
         return "finances/payment-edit";
     }

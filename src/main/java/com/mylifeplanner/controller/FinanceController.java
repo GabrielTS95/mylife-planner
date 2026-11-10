@@ -1,6 +1,7 @@
 package com.mylifeplanner.controller;
 
 import com.mylifeplanner.model.FinanceTransaction;
+import com.mylifeplanner.model.FundingSource;
 import com.mylifeplanner.model.TransactionType;
 import com.mylifeplanner.service.FinanceCategoryService;
 import com.mylifeplanner.service.FinanceService;
@@ -34,13 +35,20 @@ public class FinanceController {
                        @RequestParam(required = false) String sortAmount,
                        Model model) {
         YearMonth selectedMonth = resolveMonth(month, year);
+        if (selectedMonth.equals(YearMonth.now())) {
+            service.ensureAutomaticCarryover(selectedMonth);
+        }
         List<FinanceTransaction> transactions = service.findByMonth(selectedMonth, sortAmount);
         Set<Long> duplicatedToNextMonthIds = service.findDuplicatedToNextMonthIds(transactions);
 
         BigDecimal income = service.totalByTypeForMonth(TransactionType.INGRESO, selectedMonth);
         BigDecimal expense = service.totalByTypeForMonth(TransactionType.GASTO, selectedMonth);
+        BigDecimal budgetExpense = service.totalBudgetExpensesForMonth(selectedMonth);
+        BigDecimal externalFundedExpense = service.totalExternalFundedExpensesForMonth(selectedMonth);
+        BigDecimal injections = service.totalInjectionsForMonth(selectedMonth);
+        BigDecimal carryover = service.totalCarryoverForMonth(selectedMonth);
         BigDecimal saving = service.totalByTypeForMonth(TransactionType.AHORRO, selectedMonth);
-        BigDecimal balance = income.subtract(expense).subtract(saving);
+        BigDecimal balance = service.availableForMonth(selectedMonth);
 
         BigDecimal previousExpense = service.totalByTypeForMonth(TransactionType.GASTO, selectedMonth.minusMonths(1));
 
@@ -53,7 +61,9 @@ public class FinanceController {
         List<Integer> filterYears = availableYears(selectedMonth.getYear());
 
         model.addAttribute("transaction", new FinanceTransaction());
-        model.addAttribute("types", TransactionType.values());
+        model.addAttribute("types", List.of(TransactionType.INGRESO, TransactionType.GASTO,
+                TransactionType.AHORRO, TransactionType.INYECCION));
+        model.addAttribute("fundingSources", FundingSource.values());
         model.addAttribute("transactions", transactions);
         model.addAttribute("linkedPaymentTransactionIds", service.linkedPaymentTransactionIds());
         model.addAttribute("duplicatedToNextMonthIds", duplicatedToNextMonthIds);
@@ -63,6 +73,10 @@ public class FinanceController {
         model.addAttribute("monthIncome", income);
         model.addAttribute("expense", expense);
         model.addAttribute("monthExpenses", expense);
+        model.addAttribute("monthBudgetExpenses", budgetExpense);
+        model.addAttribute("monthExternalFundedExpenses", externalFundedExpense);
+        model.addAttribute("monthInjections", injections);
+        model.addAttribute("monthCarryover", carryover);
         model.addAttribute("saving", saving);
         model.addAttribute("monthSavings", saving);
         model.addAttribute("balance", balance);
@@ -76,6 +90,9 @@ public class FinanceController {
         model.addAttribute("categories", categories.findAll());
         model.addAttribute("banks", FinanceTransaction.BANKS);
         model.addAttribute("recentTransactions", service.findAll().stream().limit(5).toList());
+        model.addAttribute("possibleFundingExpenses", service.findPossibleFundingExpenses());
+        model.addAttribute("carryoverCreated", service.hasCarryoverFrom(selectedMonth));
+        model.addAttribute("nextMonth", selectedMonth.plusMonths(1));
 
         populateCharts(model, selectedMonth);
 
@@ -171,19 +188,27 @@ public class FinanceController {
 
     @PostMapping
     public String save(@jakarta.validation.Valid @ModelAttribute FinanceTransaction transaction,
-                       @RequestParam(required = false) String movementMonth) {
+                       @RequestParam(required = false) String movementMonth,
+                       @RequestParam(required = false) List<Long> expenseIds,
+                       RedirectAttributes attributes) {
         transaction.setId(null);
         transaction.setDuplicateSourceId(null);
         transaction.setRegistrationDate(LocalDate.now());
         transaction.setAccountingMonth(parseMonth(movementMonth).atDay(1));
-        service.save(transaction);
+        try {
+            service.saveWithFundingChannels(transaction, expenseIds);
+        } catch (IllegalArgumentException exception) {
+            attributes.addFlashAttribute("actionError", exception.getMessage());
+        }
         return "redirect:/finances?month=" + transaction.getMovementMonth();
     }
 
     @PostMapping("/{id}/edit")
     public String update(@PathVariable Long id,
                          @jakarta.validation.Valid @ModelAttribute FinanceTransaction transaction,
-                         @RequestParam(required = false) String movementMonth) {
+                         @RequestParam(required = false) String movementMonth,
+                         @RequestParam(required = false) List<Long> expenseIds,
+                         RedirectAttributes attributes) {
         service.requireManualMovement(id);
         FinanceTransaction existing = service.findById(id);
         existing.setAmount(transaction.getAmount());
@@ -191,9 +216,14 @@ public class FinanceController {
         existing.setCategory(transaction.getCategory());
         existing.setBank(transaction.getBank());
         existing.setType(transaction.getType());
+        existing.setFundingSource(transaction.getFundingSource());
         existing.setAccountingMonth(parseMonth(movementMonth == null ? existing.getMovementMonth() : movementMonth).atDay(1));
         existing.setTransactionDate(transaction.getTransactionDate());
-        service.save(existing);
+        try {
+            service.saveWithFundingChannels(existing, expenseIds);
+        } catch (IllegalArgumentException exception) {
+            attributes.addFlashAttribute("actionError", exception.getMessage());
+        }
         return "redirect:/finances?month=" + existing.getMovementMonth();
     }
 
@@ -212,6 +242,22 @@ public class FinanceController {
             redirect += "&sortAmount=" + sortAmount;
         }
         return redirect;
+    }
+
+    @PostMapping("/carryover")
+    public String carryover(@RequestParam String month, RedirectAttributes attributes) {
+        YearMonth sourceMonth = parseMonth(month);
+        try {
+            boolean existed = service.hasCarryoverFrom(sourceMonth);
+            FinanceTransaction movement = service.carryOverAvailable(sourceMonth, false);
+            attributes.addFlashAttribute("actionSuccess", existed
+                    ? "El disponible de ese mes ya estaba trasladado."
+                    : "Disponible trasladado correctamente a " + sourceMonth.plusMonths(1) + ".");
+            return "redirect:/finances?month=" + movement.getMovementMonth();
+        } catch (IllegalArgumentException exception) {
+            attributes.addFlashAttribute("actionError", exception.getMessage());
+            return "redirect:/finances?month=" + sourceMonth;
+        }
     }
 
     @PostMapping("/{id}/delete")

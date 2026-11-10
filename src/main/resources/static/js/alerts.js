@@ -46,11 +46,12 @@
     const deleting = action === 'delete';
     const editing = action === 'edit';
     const duplicating = action === 'duplicate';
+    const carrying = action === 'carryover';
     const logout = action === 'logout';
     return show({
-      title: logout ? '¿Cerrar sesión?' : duplicating ? '¿Crear las copias del movimiento?' : deleting ? '¿Eliminar este registro?' : editing ? '¿Guardar los cambios?' : '¿Guardar este registro?',
-      message: logout ? 'Tendrás que ingresar tus credenciales para volver.' : duplicating ? 'Se crearán movimientos independientes en el periodo seleccionado.' : deleting ? 'Esta acción no se puede deshacer.' : 'Confirma que los datos son correctos para continuar.',
-      confirmText: logout ? 'Sí, cerrar sesión' : duplicating ? 'Sí, crear copias' : deleting ? 'Sí, eliminar' : editing ? 'Sí, guardar cambios' : 'Sí, guardar',
+      title: logout ? '¿Cerrar sesión?' : carrying ? '¿Trasladar el disponible?' : duplicating ? '¿Crear las copias del movimiento?' : deleting ? '¿Eliminar este registro?' : editing ? '¿Guardar los cambios?' : '¿Guardar este registro?',
+      message: logout ? 'Tendrás que ingresar tus credenciales para volver.' : carrying ? 'Se registrará ahora el disponible en el mes siguiente. El importe quedará fijado aunque después cambies movimientos del mes de origen.' : duplicating ? 'Se crearán movimientos independientes en el periodo seleccionado.' : deleting ? 'Esta acción no se puede deshacer.' : 'Confirma que los datos son correctos para continuar.',
+      confirmText: logout ? 'Sí, cerrar sesión' : carrying ? 'Sí, trasladar' : duplicating ? 'Sí, crear copias' : deleting ? 'Sí, eliminar' : editing ? 'Sí, guardar cambios' : 'Sí, guardar',
       kind: deleting ? 'danger' : 'confirm', cancel: true
     });
   };
@@ -86,4 +87,6 @@
   });
   const success = document.getElementById('actionFeedback')?.dataset.success;
   if (success) window.AppAlerts.success(success);
+  const error = document.getElementById('actionFeedback')?.dataset.error;
+  if (error) window.AppAlerts.error(error);
 })();

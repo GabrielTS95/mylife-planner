@@ -19,6 +19,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 @Service
@@ -112,9 +114,14 @@ public class FinanceService {
                 .toList();
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public FinanceTransaction save(FinanceTransaction tx) {
         account.requireAccess(AppPage.FINANCES);
         if (tx.getId() != null) requireManualMovement(tx.getId());
+        if (tx.getType() == TransactionType.ARRASTRE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El saldo trasladado se genera desde el cierre mensual.");
+        }
         tx.setUser(account.currentUser());
         if (tx.getCategory() != null && "Bancos".equalsIgnoreCase(tx.getCategory().strip())) {
             if (!FinanceTransaction.BANKS.contains(tx.getBank() == null ? "" : tx.getBank())) {
@@ -124,6 +131,15 @@ public class FinanceService {
         } else {
             tx.setBank(null);
         }
+        if (tx.getType() == TransactionType.INYECCION
+                && tx.getFundingSource() == com.mylifeplanner.model.FundingSource.MONTHLY_BUDGET) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Selecciona el fondo externo del que proviene la inyección.");
+        }
+        if (tx.getType() != TransactionType.GASTO && tx.getType() != TransactionType.INYECCION) {
+            tx.setFundingSource(com.mylifeplanner.model.FundingSource.MONTHLY_BUDGET);
+        }
+        validateLinkedExpense(tx);
         LocalDate monthDate = tx.getTransactionDate() != null ? tx.getTransactionDate()
                 : tx.getAccountingMonth() != null ? tx.getAccountingMonth() : LocalDate.now();
         tx.setAccountingMonth(monthDate.withDayOfMonth(1));
@@ -131,6 +147,82 @@ public class FinanceService {
             tx.setCategory(tx.getType().getLabel());
         }
         return repository.save(tx);
+    }
+
+    public List<FinanceTransaction> findPossibleFundingExpenses() {
+        return findAll().stream()
+                .filter(tx -> tx.getType() == TransactionType.GASTO && !tx.isAffectsMonthlyBudget())
+                .sorted(Comparator.comparing(FinanceTransaction::getReportingDate,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public FinanceTransaction saveWithFundingChannels(FinanceTransaction transaction, List<Long> expenseIds) {
+        if (transaction.getId() != null && transaction.getType() != TransactionType.INYECCION) {
+            boolean hasChannels = findAll().stream().anyMatch(expense -> expense.getFundingInjection() != null
+                    && transaction.getId().equals(expense.getFundingInjection().getId()));
+            if (hasChannels) {
+                throw new IllegalArgumentException("Desvincula los gastos antes de cambiar el tipo de esta inyección.");
+            }
+        }
+        FinanceTransaction saved = save(transaction);
+        if (saved.getType() != TransactionType.INYECCION) return saved;
+
+        Set<Long> selectedIds = expenseIds == null ? Set.of() : new LinkedHashSet<>(expenseIds);
+        List<FinanceTransaction> selected = selectedIds.stream().map(this::findById).toList();
+        for (FinanceTransaction expense : selected) {
+            if (expense.getType() != TransactionType.GASTO || expense.isAffectsMonthlyBudget()) {
+                throw new IllegalArgumentException("Solo se pueden canalizar gastos pagados con fondos externos.");
+            }
+            if (!expense.getMovementMonth().equals(saved.getMovementMonth())) {
+                throw new IllegalArgumentException("La inyección y los gastos seleccionados deben pertenecer al mismo mes.");
+            }
+            if (expense.getFundingInjection() != null
+                    && !saved.getId().equals(expense.getFundingInjection().getId())) {
+                throw new IllegalArgumentException("Uno de los gastos ya está canalizado por otra inyección.");
+            }
+        }
+        BigDecimal allocated = selected.stream().map(this::amountOf).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (allocated.compareTo(saved.getAmount()) > 0) {
+            throw new IllegalArgumentException("Los gastos seleccionados suman S/ " + allocated
+                    + " y superan la inyección de S/ " + saved.getAmount() + ".");
+        }
+
+        List<FinanceTransaction> current = findAll().stream()
+                .filter(expense -> expense.getFundingInjection() != null
+                        && saved.getId().equals(expense.getFundingInjection().getId()))
+                .toList();
+        for (FinanceTransaction expense : current) {
+            if (!selectedIds.contains(expense.getId())) {
+                expense.setFundingInjection(null);
+                saved.getFundedExpenses().remove(expense);
+                repository.save(expense);
+            }
+        }
+        for (FinanceTransaction expense : selected) {
+            expense.setFundingInjection(saved);
+            expense.setFundingSource(saved.getFundingSource());
+            if (!saved.getFundedExpenses().contains(expense)) saved.getFundedExpenses().add(expense);
+            repository.save(expense);
+        }
+        repository.flush();
+        return repository.findById(saved.getId()).orElse(saved);
+    }
+
+    private void validateLinkedExpense(FinanceTransaction transaction) {
+        FinanceTransaction injection = transaction.getFundingInjection();
+        if (injection == null) return;
+        if (transaction.getType() != TransactionType.GASTO) {
+            throw new IllegalArgumentException("Un gasto canalizado debe conservar el tipo Gasto.");
+        }
+        transaction.setFundingSource(injection.getFundingSource());
+        BigDecimal otherExpenses = injection.getFundedExpenses().stream()
+                .filter(expense -> transaction.getId() == null || !transaction.getId().equals(expense.getId()))
+                .map(this::amountOf).reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (otherExpenses.add(amountOf(transaction)).compareTo(injection.getAmount()) > 0) {
+            throw new IllegalArgumentException("El nuevo importe supera el saldo de la inyección vinculada.");
+        }
     }
 
     @org.springframework.transaction.annotation.Transactional
@@ -160,6 +252,7 @@ public class FinanceService {
             copy.setBank(original.getBank());
             copy.setDescription(original.getDescription());
             copy.setType(original.getType());
+            copy.setFundingSource(original.getFundingSource());
             copy.setAccountingMonth(target.atDay(1));
             copy.setDuplicateSourceId(rootId);
             if (original.getTransactionDate() != null) {
@@ -171,13 +264,23 @@ public class FinanceService {
         return created;
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void delete(Long id) {
         requireManualMovement(id);
-        repository.delete(findById(id));
+        FinanceTransaction transaction = findById(id);
+        if (transaction.getType() == TransactionType.INYECCION && !transaction.getFundedExpenses().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Esta inyección tiene gastos canalizados. Edítala y desvincúlalos antes de eliminarla.");
+        }
+        repository.delete(transaction);
     }
 
     public void requireManualMovement(Long id) {
-        findById(id);
+        FinanceTransaction transaction = findById(id);
+        if (transaction.isCarryover()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Este movimiento representa un saldo trasladado y no se edita manualmente.");
+        }
         if (payments.existsByTransactionIdAndUserId(id, account.currentUser().getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Este gasto pertenece a una cuota. Gestiona o anula el pago desde Mi ciclo.");
@@ -218,14 +321,79 @@ public class FinanceService {
 
     public BigDecimal availableForMonth(YearMonth month) {
         return totalByTypeForMonth(TransactionType.INGRESO, month)
-                .subtract(totalByTypeForMonth(TransactionType.GASTO, month))
+                .add(totalByTypeForMonth(TransactionType.ARRASTRE, month))
+                .subtract(totalBudgetExpensesForMonth(month))
                 .subtract(totalByTypeForMonth(TransactionType.AHORRO, month));
     }
 
     public BigDecimal availableInRange(LocalDate start, LocalDate end) {
         return totalByTypeInRange(TransactionType.INGRESO, start, end)
-                .subtract(totalByTypeInRange(TransactionType.GASTO, start, end))
+                .subtract(totalBudgetExpensesInRange(start, end))
                 .subtract(totalByTypeInRange(TransactionType.AHORRO, start, end));
+    }
+
+    public BigDecimal totalInjectionsForMonth(YearMonth month) {
+        return totalByTypeForMonth(TransactionType.INYECCION, month);
+    }
+
+    public BigDecimal totalCarryoverForMonth(YearMonth month) {
+        return totalByTypeForMonth(TransactionType.ARRASTRE, month);
+    }
+
+    public Optional<FinanceTransaction> findCarryoverFrom(YearMonth sourceMonth) {
+        LocalDate source = sourceMonth.atDay(1);
+        return findAll().stream().filter(tx -> source.equals(tx.getCarryoverSourceMonth())).findFirst();
+    }
+
+    public boolean hasCarryoverFrom(YearMonth sourceMonth) {
+        return findCarryoverFrom(sourceMonth).isPresent();
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public FinanceTransaction carryOverAvailable(YearMonth sourceMonth, boolean automatic) {
+        account.requireAccess(AppPage.FINANCES);
+        Optional<FinanceTransaction> existing = findCarryoverFrom(sourceMonth);
+        if (existing.isPresent()) return existing.get();
+        if (automatic && !sourceMonth.atEndOfMonth().isBefore(LocalDate.now())) return null;
+        BigDecimal amount = availableForMonth(sourceMonth);
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            if (automatic) return null;
+            throw new IllegalArgumentException("No hay un disponible positivo para trasladar al siguiente mes.");
+        }
+        YearMonth targetMonth = sourceMonth.plusMonths(1);
+        FinanceTransaction carryover = new FinanceTransaction();
+        carryover.setUser(account.currentUser());
+        carryover.setType(TransactionType.ARRASTRE);
+        carryover.setAmount(amount);
+        carryover.setDescription("Disponible trasladado de " + sourceMonth.format(
+                DateTimeFormatter.ofPattern("MMMM yyyy", Locale.forLanguageTag("es-PE"))));
+        carryover.setCategory("Saldo anterior");
+        carryover.setAccountingMonth(targetMonth.atDay(1));
+        carryover.setRegistrationDate(LocalDate.now());
+        carryover.setCarryoverSourceMonth(sourceMonth.atDay(1));
+        carryover.setAutomaticCarryover(automatic);
+        carryover.setFundingSource(com.mylifeplanner.model.FundingSource.MONTHLY_BUDGET);
+        return repository.save(carryover);
+    }
+
+    public FinanceTransaction ensureAutomaticCarryover(YearMonth targetMonth) {
+        return carryOverAvailable(targetMonth.minusMonths(1), true);
+    }
+
+    public BigDecimal totalBudgetExpensesForMonth(YearMonth month) {
+        return totalBudgetExpenses(findByMonth(month));
+    }
+
+    public BigDecimal totalBudgetExpensesInRange(LocalDate start, LocalDate end) {
+        return totalBudgetExpenses(findByDateRange(start, end));
+    }
+
+    public BigDecimal totalExternalFundedExpensesForMonth(YearMonth month) {
+        return findByMonth(month).stream()
+                .filter(transaction -> transaction.getType() == TransactionType.GASTO)
+                .filter(transaction -> !transaction.isAffectsMonthlyBudget())
+                .map(this::amountOf)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     public Map<String, BigDecimal> expensesByCategory(YearMonth month) {
@@ -285,6 +453,14 @@ public class FinanceService {
     private BigDecimal totalByType(List<FinanceTransaction> transactions, TransactionType type) {
         return transactions.stream()
                 .filter(transaction -> transaction.getType() == type)
+                .map(this::amountOf)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal totalBudgetExpenses(List<FinanceTransaction> transactions) {
+        return transactions.stream()
+                .filter(transaction -> transaction.getType() == TransactionType.GASTO)
+                .filter(FinanceTransaction::isAffectsMonthlyBudget)
                 .map(this::amountOf)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }

@@ -5,9 +5,14 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
-@Table(name = "finance_transactions", uniqueConstraints = @UniqueConstraint(columnNames = {"duplicate_source_id", "accounting_month"}))
+@Table(name = "finance_transactions", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"duplicate_source_id", "accounting_month"}),
+        @UniqueConstraint(columnNames = {"user_id", "carryover_source_month"})
+})
 public class FinanceTransaction extends UserOwnedEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -16,16 +21,47 @@ public class FinanceTransaction extends UserOwnedEntity {
     private String description;
     private String category;
     private String bank;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "funding_source")
+    private FundingSource fundingSource = FundingSource.MONTHLY_BUDGET;
     public static final java.util.List<String> BANKS = java.util.List.of("BBVA", "BCP", "INTERBANK", "SCOTIABANK", "PICHINCHA");
     // Fecha de pago indicada por el usuario.
     private LocalDate transactionDate;
     private LocalDate accountingMonth;
     private Long duplicateSourceId;
+    private LocalDate carryoverSourceMonth;
+    private Boolean automaticCarryover;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "funding_injection_id")
+    private FinanceTransaction fundingInjection;
+    @OneToMany(mappedBy = "fundingInjection", fetch = FetchType.LAZY)
+    @OrderBy("transactionDate ASC, id ASC")
+    private List<FinanceTransaction> fundedExpenses = new ArrayList<>();
 
     public LocalDate getAccountingMonth() { return accountingMonth; }
     public void setAccountingMonth(LocalDate value) { accountingMonth = value; }
     public Long getDuplicateSourceId() { return duplicateSourceId; }
     public void setDuplicateSourceId(Long value) { duplicateSourceId = value; }
+    public LocalDate getCarryoverSourceMonth() { return carryoverSourceMonth; }
+    public void setCarryoverSourceMonth(LocalDate value) { carryoverSourceMonth = value; }
+    public boolean isAutomaticCarryover() { return Boolean.TRUE.equals(automaticCarryover); }
+    public void setAutomaticCarryover(boolean value) { automaticCarryover = value; }
+    public boolean isCarryover() { return getType() == TransactionType.ARRASTRE; }
+    public FinanceTransaction getFundingInjection() { return fundingInjection; }
+    public void setFundingInjection(FinanceTransaction value) { fundingInjection = value; }
+    public List<FinanceTransaction> getFundedExpenses() { return fundedExpenses; }
+    public BigDecimal getAllocatedAmount() {
+        return fundedExpenses.stream().map(FinanceTransaction::getAmount)
+                .filter(java.util.Objects::nonNull).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+    public BigDecimal getUnallocatedAmount() {
+        BigDecimal value = amount == null ? BigDecimal.ZERO : amount.subtract(getAllocatedAmount());
+        return value.max(BigDecimal.ZERO);
+    }
+    public String getFundedExpenseIdsCsv() {
+        return fundedExpenses.stream().map(FinanceTransaction::getId).filter(java.util.Objects::nonNull)
+                .map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
+    }
     public LocalDate getReportingDate() {
         if (transactionDate != null) return transactionDate;
         if (accountingMonth != null) return accountingMonth;
@@ -60,6 +96,15 @@ public class FinanceTransaction extends UserOwnedEntity {
     public void setBank(String bank) { this.bank = bank; }
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
+    public FundingSource getFundingSource() {
+        return fundingSource == null ? FundingSource.MONTHLY_BUDGET : fundingSource;
+    }
+    public void setFundingSource(FundingSource fundingSource) {
+        this.fundingSource = fundingSource == null ? FundingSource.MONTHLY_BUDGET : fundingSource;
+    }
+    public boolean isAffectsMonthlyBudget() {
+        return getType() == TransactionType.GASTO && getFundingSource().isAffectsMonthlyBudget();
+    }
     public LocalDate getTransactionDate() { return transactionDate; }
     public void setTransactionDate(LocalDate transactionDate) { this.transactionDate = transactionDate; }
     public TransactionType getType() { return type == null ? TransactionType.GASTO : type; }
