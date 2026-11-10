@@ -416,6 +416,7 @@ class FinanceActionsTests {
                 .andExpect(content().string(containsString("Monto")))
                 .andExpect(content().string(containsString("Acciones")))
                 // Muestra un guion '-' para los que son sin fecha de pago
-                .andExpect(content().string(containsString("<td>-</td>")));
+                .andExpect(content().string(containsString(
+                        "<td class=\"finance-cell-date\" data-label=\"Fecha de pago\">-</td>")));
     }
 }

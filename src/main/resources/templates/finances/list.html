@@ -12,7 +12,7 @@
   <link rel="stylesheet" th:href="@{/css/app.css}">
   <link rel="stylesheet" th:href="@{/css/footer.css}">
 </head>
-<body class="dashboard-shell">
+<body class="dashboard-shell finance-movements-page">
 
 <!-- SIDEBAR MODERNO COMPARTIDO -->
 <div th:replace="~{fragments/navbar :: navbar}"></div>
@@ -33,7 +33,7 @@
     </div>
     <div class="home-topbar-actions">
       <a th:href="@{/finances/cycle}" class="btn btn-outline-success rounded-pill"><i class="bi bi-calendar2-range me-1"></i>Mi ciclo y pagos</a>
-      <form method="get" th:action="@{/finances}" class="d-flex align-items-center gap-2">
+      <form method="get" th:action="@{/finances}" class="finance-period-filter">
         <input type="hidden" name="sortAmount" th:value="${sortAmount}" id="filterSortAmount">
         <label for="month" class="fw-bold small text-muted mb-0">Mes:</label>
         <select id="month" name="month" class="form-select rounded-pill" aria-label="Mes de los movimientos"
@@ -131,8 +131,8 @@
       </button>
       </div>
     </div>
-    <div class="table-responsive">
-      <table class="table align-middle table-hover mb-0">
+    <div class="table-responsive finance-table-responsive">
+      <table class="table align-middle table-hover mb-0 finance-movements-table">
         <thead class="table-light">
         <tr>
           <th style="width: 50px;" class="text-center">#</th>
@@ -152,10 +152,10 @@
         </tr>
         </thead>
         <tbody>
-        <tr th:each="tx, iterStat : ${transactions}" th:attr="data-amount=${tx.amount}">
-          <td class="text-center text-muted fw-semibold row-number" th:text="${pageStart + iterStat.index}">1</td>
-          <td th:text="${tx.transactionDate != null ? #temporals.format(tx.transactionDate, 'dd/MM/yyyy') : '-'}">-</td>
-          <td>
+        <tr th:each="tx, iterStat : ${transactions}" class="finance-movement-row" th:attr="data-amount=${tx.amount}">
+          <td class="text-center text-muted fw-semibold row-number finance-cell-index" data-label="#" th:text="${pageStart + iterStat.index}">1</td>
+          <td class="finance-cell-date" data-label="Fecha de pago" th:text="${tx.transactionDate != null ? #temporals.format(tx.transactionDate, 'dd/MM/yyyy') : '-'}">-</td>
+          <td class="finance-cell-detail" data-label="Detalle">
             <div class="movement-detail-title">
               <a th:if="${cycleMovementTransactionIds.contains(tx.id) && !tx.transactionDate.isAfter(today)}"
                  th:href="@{/finances/cycle(date=${tx.transactionDate})}"
@@ -179,24 +179,26 @@
             <small th:if="${tx.fundingInjection != null}" class="d-block text-info-emphasis mt-1"
                    th:text="|Canalizado por: ${tx.fundingInjection.description != null ? tx.fundingInjection.description : 'Inyección de fondos'}|"></small>
           </td>
-          <td><span class="badge bg-light text-dark border" th:text="${tx.category}"></span></td>
-          <td>
+          <td class="finance-cell-category" data-label="Categoría"><span class="badge bg-light text-dark border" th:text="${tx.category}"></span></td>
+          <td class="finance-cell-type" data-label="Tipo">
             <span class="badge"
                   th:classappend="${tx.type.name() == 'INGRESO'} ? 'bg-success-subtle text-success border border-success' : (${tx.type.name() == 'GASTO'} ? 'bg-danger-subtle text-danger border border-danger' : (${tx.type.name() == 'INYECCION'} ? 'bg-info-subtle text-info-emphasis border border-info' : (${tx.type.name() == 'ARRASTRE'} ? 'bg-secondary-subtle text-secondary border' : 'bg-primary-subtle text-primary border border-primary')))"
                   th:text="${tx.type.label}"></span>
           </td>
-          <td>
-            <span th:if="${tx.type.name() == 'GASTO' || tx.type.name() == 'INYECCION'}" class="badge bg-secondary-subtle text-secondary border"
-                  th:text="${tx.fundingSource.label}"></span>
-            <small th:if="${tx.type.name() == 'GASTO' && !tx.affectsMonthlyBudget}" class="d-block text-muted mt-1">No descuenta presupuesto</small>
-            <span th:unless="${tx.type.name() == 'GASTO' || tx.type.name() == 'INYECCION'}" class="text-muted">—</span>
+          <td class="finance-cell-source" data-label="Origen de fondos">
+            <div class="finance-source-value">
+              <span th:if="${tx.type.name() == 'GASTO' || tx.type.name() == 'INYECCION'}" class="badge bg-secondary-subtle text-secondary border"
+                    th:text="${tx.fundingSource.label}"></span>
+              <small th:if="${tx.type.name() == 'GASTO' && !tx.affectsMonthlyBudget}" class="d-block text-muted mt-1">No descuenta presupuesto</small>
+              <span th:unless="${tx.type.name() == 'GASTO' || tx.type.name() == 'INYECCION'}" class="text-muted">—</span>
+            </div>
           </td>
-          <td class="text-end fw-bold"
+          <td class="text-end fw-bold finance-cell-amount" data-label="Monto"
               th:classappend="${tx.type.name() == 'INGRESO'} ? 'text-success' : (${tx.type.name() == 'GASTO'} ? 'text-danger' : (${tx.type.name() == 'ARRASTRE'} ? 'text-secondary' : 'text-primary'))">
             <span th:text="${tx.type.name() == 'INGRESO' || tx.type.name() == 'INYECCION' || tx.type.name() == 'ARRASTRE' ? '+' : (tx.type.name() == 'GASTO' ? '-' : '')}"></span>S/ <span th:text="${#numbers.formatDecimal(tx.amount, 1, 2)}"></span>
             <small th:if="${tx.type.name() == 'GASTO' && !tx.affectsMonthlyBudget}" class="d-block fw-normal text-muted">Fuera del presupuesto</small>
           </td>
-          <td class="text-end text-nowrap">
+          <td class="text-end text-nowrap finance-cell-actions" data-label="Acciones">
             <a th:if="${linkedPaymentTransactionIds.contains(tx.id)}" th:href="@{/finances/cycle(date=${tx.transactionDate})}" class="btn btn-sm btn-outline-success">Gestionar pago en Mi ciclo</a>
             <span th:if="${tx.carryover}" class="badge bg-secondary-subtle text-secondary border"
                   th:text="${tx.automaticCarryover ? 'Traslado automático' : 'Traslado manual'}"></span>
@@ -222,7 +224,7 @@
             </div>
           </td>
         </tr>
-        <tr th:if="${#lists.isEmpty(transactions)}">
+        <tr th:if="${#lists.isEmpty(transactions)}" class="finance-empty-row">
           <td colspan="8" class="text-center text-muted py-4">No hay movimientos en este mes.</td>
         </tr>
         </tbody>
