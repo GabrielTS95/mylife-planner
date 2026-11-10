@@ -306,7 +306,7 @@ class FinanceCycleTests {
                         org.hamcrest.Matchers.hasItems(txId, manual.getId())))
                 .andExpect(content().string(containsString("Gestionar pago en Mi ciclo")))
                 .andExpect(content().string(containsString("class=\"cycle-link-badge\"")))
-                .andExpect(content().string(containsString("aria-label=\"Ver este pago en Mi ciclo\">C</a>")));
+                .andExpect(content().string(containsString("aria-label=\"Ver este movimiento en Mi ciclo\">C</a>")));
         mvc.perform(post("/finances/{id}/edit", txId).with(user(owner.getUsername())).with(csrf())
                         .param("amount", "1").param("type", "INGRESO"))
                 .andExpect(status().isConflict());
@@ -316,6 +316,16 @@ class FinanceCycleTests {
                 .andExpect(status().isConflict());
         assertThat(transactions.findById(txId).orElseThrow().getAmount()).isEqualByComparingTo("60");
         mvc.perform(get("/finances/cycle").with(user(owner.getUsername()))).andExpect(status().isOk());
+    }
+
+    @Test
+    void marksFutureDatedMovementsThatBelongToTheCurrentCycle() {
+        LocalDate today = LocalDate.of(2026, 11, 10);
+        FinanceTransaction futureMovement = movement("80", TransactionType.GASTO,
+                LocalDate.of(2026, 11, 24));
+
+        assertThat(cycles.currentMovementIds(today)).contains(futureMovement.getId());
+        assertThat(cycles.overview(today, today).movements()).doesNotContain(futureMovement);
     }
 
     @Test

@@ -158,10 +158,10 @@
           <td>
             <div class="movement-detail-title">
               <a th:if="${cycleMovementTransactionIds.contains(tx.id)}"
-                 th:href="@{/finances/cycle(date=${tx.transactionDate})}"
+                 th:href="@{/finances/cycle(date=${tx.transactionDate.isAfter(today) ? today : tx.transactionDate})}"
                  class="cycle-link-badge"
-                 title="Este movimiento está incluido en Mi ciclo"
-                 aria-label="Ver este pago en Mi ciclo">C</a>
+                 th:title="${tx.transactionDate.isAfter(today) ? 'Pertenece a Mi ciclo y se contabilizará en la fecha de pago' : 'Este movimiento está contabilizado en Mi ciclo'}"
+                 aria-label="Ver este movimiento en Mi ciclo">C</a>
               <strong th:text="${tx.description != null && !tx.description.isBlank() ? tx.description : 'Sin descripción'}"></strong>
             </div>
             <div th:if="${tx.type.name() == 'INYECCION'}" class="small text-muted mt-1">
